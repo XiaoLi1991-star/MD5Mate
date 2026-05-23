@@ -29,8 +29,8 @@ def main() -> int:
         ("pytest qt layout", lambda: run([PYTHON, "-m", "pytest", "tests/test_qt_gui_layout.py", "-q"])),
         ("pytest qt functional", lambda: run([PYTHON, "-m", "pytest", "tests/test_qt_gui_functional.py", "-q"])),
         ("cli md5 output", check_cli_md5_output),
-        ("cli csv output", check_cli_csv_output),
-        ("cli text report", check_cli_text_report),
+        ("cli csv extension still writes md5sum", check_cli_csv_extension_md5sum_output),
+        ("cli no format option", check_cli_no_format_option),
         ("cli empty selection exit", check_cli_empty_selection),
         ("thread count normalization", check_thread_count_normalization),
         ("filter preset parsing", check_filter_preset_parsing),
@@ -101,8 +101,6 @@ def check_cli_md5_output() -> None:
                 "2",
                 "--output",
                 str(output),
-                "--format",
-                "md5",
             ]
         )
         content = output.read_text(encoding="utf-8")
@@ -111,27 +109,19 @@ def check_cli_md5_output() -> None:
         assert "b.bin" not in content
 
 
-def check_cli_csv_output() -> None:
+def check_cli_csv_extension_md5sum_output() -> None:
     with tempfile.TemporaryDirectory(prefix="md5mate-csv-") as tmp:
         root = Path(tmp)
         (root / "a.txt").write_text("alpha", encoding="utf-8")
         output = root / "report.csv"
-        run([PYTHON, "-m", "md5_tool.cli", str(root), "--output", str(output), "--format", "csv"])
-        content = output.read_text(encoding="utf-8-sig")
-        assert "MD5" in content
-        assert "a.txt" in content
-        assert hashlib.md5(b"alpha").hexdigest() in content
-
-
-def check_cli_text_report() -> None:
-    with tempfile.TemporaryDirectory(prefix="md5mate-txt-") as tmp:
-        root = Path(tmp)
-        (root / "manual.txt").write_text("guide", encoding="utf-8")
-        output = root / "report.txt"
-        run([PYTHON, "-m", "md5_tool.cli", str(root), "--output", str(output), "--format", "txt"])
+        run([PYTHON, "-m", "md5_tool.cli", str(root), "--output", str(output)])
         content = output.read_text(encoding="utf-8")
-        assert "MD5Mate" in content
-        assert "manual.txt" in content
+        assert content == f"{hashlib.md5(b'alpha').hexdigest()}  a.txt\n"
+
+
+def check_cli_no_format_option() -> None:
+    completed = run([PYTHON, "-m", "md5_tool.cli", "--help"])
+    assert "--format" not in completed.stdout
 
 
 def check_cli_empty_selection() -> None:

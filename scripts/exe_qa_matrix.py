@@ -264,6 +264,12 @@ def check_advanced_expands() -> None:
         assert app.controls("Spinner")
         assert app.controls("CheckBox", RECURSIVE)
         assert len(app.controls("Edit")) >= 3
+        assert len(app.controls("ComboBox")) == 1, "format selector should not be present"
+        assert app.controls("Button", "\u25b2"), "thread increment triangle is missing"
+        assert app.controls("Button", "\u25bc"), "thread decrement triangle is missing"
+        output_edit = app.first("Edit", index=2)
+        threads_spin = app.first("Spinner")
+        assert output_edit.rectangle().right + 8 <= threads_spin.rectangle().left, "advanced controls overlap"
 
 
 def check_filter_dropdown_theme() -> None:

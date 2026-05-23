@@ -14,17 +14,11 @@ from .output import save_results
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="md5mate",
-        description="批量计算文件 MD5，支持目录扫描、筛选、线程数和多种输出格式。",
+        description="批量计算文件 MD5，输出标准 md5sum 行格式。",
     )
     parser.add_argument("directory", help="要扫描的目录")
     parser.add_argument("-f", "--filter", default="*", help='文件筛选，例如 "*"、"*.zip"、".txt,.log"')
     parser.add_argument("-o", "--output", default="md5.txt", help="输出文件路径")
-    parser.add_argument(
-        "--format",
-        default="auto",
-        choices=["auto", "md5", "csv", "txt"],
-        help="输出格式；auto 会根据扩展名推断",
-    )
     parser.add_argument(
         "-t",
         "--threads",
@@ -77,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         summary = save_results(
             results,
             output,
-            output_format=args.format,
+            output_format="md5",
             root=scan.root,
             filter_text=args.filter,
             scan_issues=scan.issues,

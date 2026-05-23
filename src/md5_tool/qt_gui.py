@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QFont, QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QAbstractSpinBox,
     QApplication,
     QCheckBox,
     QComboBox,
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -59,9 +61,6 @@ FILTER_PRESETS = [
 ]
 FORMAT_LABELS = {
     "MD5 列表": "md5",
-    "CSV 表格": "csv",
-    "文本报告": "txt",
-    "自动识别": "auto",
 }
 
 COLORS = {
@@ -206,7 +205,7 @@ class JobWorker(QObject):
         filter_text = str(self.params["filter_text"])
         output = self.params.get("output")
         output_path = Path(str(output)).expanduser().resolve() if output else None
-        output_format = str(self.params["output_format"])
+        output_format = str(self.params.get("output_format", "md5"))
         recursive = bool(self.params["recursive"])
         threads = int(self.params["threads"])
 
@@ -476,14 +475,25 @@ class MD5MateWindow(QMainWindow):
         clear_output_button.setProperty("variant", "ghost")
         clear_output_button.clicked.connect(lambda: self.output_edit.setText(""))
 
-        self.format_combo = QComboBox()
-        self.format_combo.addItems(list(FORMAT_LABELS))
-        self.format_combo.setMinimumWidth(132)
-        self._style_combo_popup(self.format_combo)
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, 64)
         self.threads_spin.setValue(normalize_thread_count(None))
-        self.threads_spin.setMinimumWidth(92)
+        self.threads_spin.setMinimumWidth(104)
+        self.threads_spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.thread_stepper = QWidget()
+        stepper_layout = QVBoxLayout(self.thread_stepper)
+        stepper_layout.setContentsMargins(0, 0, 0, 0)
+        stepper_layout.setSpacing(2)
+        self.thread_up_button = QToolButton()
+        self.thread_up_button.setText("▲")
+        self.thread_up_button.setObjectName("stepButton")
+        self.thread_up_button.clicked.connect(lambda: self.threads_spin.stepUp())
+        self.thread_down_button = QToolButton()
+        self.thread_down_button.setText("▼")
+        self.thread_down_button.setObjectName("stepButton")
+        self.thread_down_button.clicked.connect(lambda: self.threads_spin.stepDown())
+        stepper_layout.addWidget(self.thread_up_button)
+        stepper_layout.addWidget(self.thread_down_button)
         self.recursive_check = QCheckBox("递归扫描子目录")
         self.recursive_check.setChecked(True)
 
@@ -515,48 +525,26 @@ class MD5MateWindow(QMainWindow):
 
         self.advanced_panel = QFrame()
         self.advanced_panel.setObjectName("advancedPanel")
-        advanced_layout = QGridLayout(self.advanced_panel)
-        advanced_layout.setContentsMargins(14, 12, 14, 12)
-        advanced_layout.setHorizontalSpacing(14)
-        advanced_layout.setVerticalSpacing(10)
-        advanced_layout.setColumnMinimumWidth(0, 86)
-        advanced_layout.setColumnStretch(0, 0)
-        advanced_layout.setColumnStretch(1, 1)
+        advanced_layout = QHBoxLayout(self.advanced_panel)
+        advanced_layout.setContentsMargins(14, 14, 14, 14)
+        advanced_layout.setSpacing(12)
         outer_layout.addWidget(self.advanced_panel)
 
         output_label = QLabel("输出")
         output_label.setObjectName("fieldLabel")
-        advanced_layout.addWidget(output_label, 0, 0)
-        output_row = QWidget()
-        output_layout = QHBoxLayout(output_row)
-        output_layout.setContentsMargins(0, 0, 0, 0)
-        output_layout.setSpacing(8)
-        output_layout.addWidget(self.output_edit, 1)
-        output_layout.addWidget(output_button)
-        output_layout.addWidget(clear_output_button)
-        advanced_layout.addWidget(output_row, 0, 1)
-        self.output_widgets = [output_label, output_row]
-
-        options_label = QLabel("参数")
-        options_label.setObjectName("fieldLabel")
-        advanced_layout.addWidget(options_label, 1, 0)
-        options_row = QWidget()
-        options_layout = QHBoxLayout(options_row)
-        options_layout.setContentsMargins(0, 0, 0, 0)
-        options_layout.setSpacing(12)
-        format_caption = QLabel("格式")
-        format_caption.setObjectName("inlineCaption")
         thread_caption = QLabel("线程")
         thread_caption.setObjectName("inlineCaption")
-        options_layout.addWidget(format_caption)
-        options_layout.addWidget(self.format_combo)
-        options_layout.addWidget(thread_caption)
-        options_layout.addWidget(self.threads_spin)
-        options_layout.addWidget(self.recursive_check)
-        options_layout.addStretch(1)
-        advanced_layout.addWidget(options_row, 1, 1)
-        self.format_widgets = [format_caption, self.format_combo, self.recursive_check]
-        self.hash_only_widgets = [self.filter_combo, self.output_edit, self.format_combo, self.recursive_check]
+        advanced_layout.addWidget(output_label)
+        advanced_layout.addWidget(self.output_edit, 1)
+        advanced_layout.addWidget(output_button)
+        advanced_layout.addWidget(clear_output_button)
+        advanced_layout.addSpacing(8)
+        advanced_layout.addWidget(thread_caption)
+        advanced_layout.addWidget(self.threads_spin)
+        advanced_layout.addWidget(self.thread_stepper)
+        advanced_layout.addWidget(self.recursive_check)
+        self.output_widgets = [output_label, self.output_edit, output_button, clear_output_button]
+        self.hash_option_widgets = [self.recursive_check]
         self.advanced_panel.setVisible(False)
         return panel
 
@@ -803,6 +791,26 @@ class MD5MateWindow(QMainWindow):
             QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{
                 border: 1px solid {COLORS["teal"]};
             }}
+            QSpinBox {{
+                padding-right: 10px;
+            }}
+            QToolButton#stepButton {{
+                min-width: 24px;
+                max-width: 24px;
+                min-height: 15px;
+                max-height: 15px;
+                padding: 0;
+                border-radius: 4px;
+                border: 1px solid #cbd5e1;
+                background: #f8fafc;
+                color: {COLORS["muted"]};
+                font-size: 8pt;
+                font-weight: 800;
+            }}
+            QToolButton#stepButton:hover {{
+                background: #eef2f7;
+                color: {COLORS["text"]};
+            }}
             QComboBox::drop-down {{
                 width: 28px;
                 border: 0;
@@ -920,10 +928,9 @@ class MD5MateWindow(QMainWindow):
             widget.setVisible(not is_verify)
         for widget in self.output_widgets:
             widget.setVisible(not is_verify)
-        for widget in self.format_widgets:
+        for widget in self.hash_option_widgets:
             widget.setVisible(not is_verify)
         self.filter_combo.setEnabled(not is_verify)
-        self.format_combo.setEnabled(not is_verify)
         self.recursive_check.setEnabled(not is_verify)
         self._reset_summary()
 
@@ -966,7 +973,7 @@ class MD5MateWindow(QMainWindow):
                 {
                     "filter_text": self.filter_combo.currentText(),
                     "output": output_text or None,
-                    "output_format": FORMAT_LABELS[self.format_combo.currentText()],
+                    "output_format": FORMAT_LABELS["MD5 列表"],
                     "recursive": self.recursive_check.isChecked(),
                 }
             )
@@ -1178,7 +1185,7 @@ class MD5MateWindow(QMainWindow):
             self,
             "保存结果",
             self.output_edit.text() or str(Path.home() / "md5_results.md5"),
-            "MD5 list (*.md5);;CSV (*.csv);;Text report (*.txt);;All files (*)",
+            "MD5 list (*.md5);;All files (*)",
         )
         if selected:
             self.output_edit.setText(selected)

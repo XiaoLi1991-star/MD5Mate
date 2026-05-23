@@ -1,5 +1,11 @@
 # MD5Mate Changelog
 
+## Unreleased
+
+- Simplified desktop and CLI export behavior to always write standard md5sum lines.
+- Removed the desktop format selector from advanced options.
+- Increased advanced option row spacing and styled the thread spinner arrows for clearer interaction.
+
 ## 1.0.0 - 2026-05-22
 
 - Rebuilt the legacy MD5 calculator into a clean package with GUI and CLI entry points.
