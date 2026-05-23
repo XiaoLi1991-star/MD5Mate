@@ -7,8 +7,8 @@ import traceback
 from pathlib import Path
 from threading import Event
 
-from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QFont, QGuiApplication
+from PySide6.QtCore import QObject, QRect, QSize, Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -162,6 +162,48 @@ class MetricCard(QFrame):
 
     def set_value(self, value: int | str) -> None:
         self.value_label.setText(str(value))
+
+
+class ClearCheckBox(QCheckBox):
+    """High-contrast checkbox for compact option rows."""
+
+    def sizeHint(self) -> QSize:  # noqa: N802 - Qt API
+        size = super().sizeHint()
+        return QSize(size.width() + 4, max(size.height(), 24))
+
+    def paintEvent(self, _event):  # noqa: N802 - Qt API
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        indicator_size = 16
+        top = (self.height() - indicator_size) // 2
+        indicator = QRect(0, top, indicator_size, indicator_size)
+
+        if not self.isEnabled():
+            fill = QColor("#eef2f7")
+            border = QColor("#cbd5e1")
+            text = QColor("#98a2b3")
+        elif self.isChecked():
+            fill = QColor(COLORS["teal"])
+            border = QColor(COLORS["teal_dark"])
+            text = QColor(COLORS["text"])
+        else:
+            fill = QColor("#ffffff")
+            border = QColor("#64748b")
+            text = QColor(COLORS["text"])
+
+        painter.setBrush(fill)
+        painter.setPen(QPen(border, 1))
+        painter.drawRoundedRect(indicator, 4, 4)
+
+        if self.isChecked() and self.isEnabled():
+            painter.setPen(QPen(QColor("#ffffff"), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+            painter.drawLine(indicator.left() + 4, indicator.top() + 8, indicator.left() + 7, indicator.top() + 11)
+            painter.drawLine(indicator.left() + 7, indicator.top() + 11, indicator.left() + 12, indicator.top() + 5)
+
+        painter.setPen(text)
+        text_rect = QRect(24, 0, self.width() - 24, self.height())
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.text())
 
 
 class JobWorker(QObject):
@@ -494,7 +536,7 @@ class MD5MateWindow(QMainWindow):
         self.thread_down_button.clicked.connect(lambda: self.threads_spin.stepDown())
         stepper_layout.addWidget(self.thread_up_button)
         stepper_layout.addWidget(self.thread_down_button)
-        self.recursive_check = QCheckBox("递归扫描子目录")
+        self.recursive_check = ClearCheckBox("递归扫描子目录")
         self.recursive_check.setChecked(True)
 
         self._add_labeled_row(layout, 0, "目录", self.directory_edit, directory_button)
@@ -838,6 +880,29 @@ class MD5MateWindow(QMainWindow):
             QCheckBox {{
                 color: {COLORS["text"]};
                 spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                border: 1px solid #64748b;
+                background: #ffffff;
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {COLORS["teal"]};
+                background: #f0fdfa;
+            }}
+            QCheckBox::indicator:checked {{
+                border: 1px solid {COLORS["teal_dark"]};
+                background: {COLORS["teal"]};
+            }}
+            QCheckBox::indicator:unchecked {{
+                border: 1px solid #64748b;
+                background: #ffffff;
+            }}
+            QCheckBox::indicator:disabled {{
+                border-color: #cbd5e1;
+                background: #eef2f7;
             }}
             QPushButton {{
                 min-height: 34px;

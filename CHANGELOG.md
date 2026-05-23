@@ -5,6 +5,7 @@
 - Simplified desktop and CLI export behavior to always write standard md5sum lines.
 - Removed the desktop format selector from advanced options.
 - Increased advanced option row spacing and styled the thread spinner arrows for clearer interaction.
+- Improved recursive-scan checkbox contrast with clear checked and unchecked states.
 
 ## 1.0.0 - 2026-05-22
 

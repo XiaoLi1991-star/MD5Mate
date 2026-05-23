@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QPoint  # noqa: E402
 from PySide6.QtWidgets import QAbstractSpinBox, QApplication  # noqa: E402
 
-from md5_tool.qt_gui import MD5MateWindow  # noqa: E402
+from md5_tool.qt_gui import ClearCheckBox, MD5MateWindow  # noqa: E402
 
 
 def _app():
@@ -76,5 +76,19 @@ def test_thread_spinner_has_explicit_arrow_styles():
     assert window.thread_up_button.text() == "▲"
     assert window.thread_down_button.text() == "▼"
     assert "QToolButton#stepButton" in stylesheet
+
+    window.close()
+
+
+def test_checkbox_indicator_has_clear_checked_and_unchecked_styles():
+    _app()
+    window = MD5MateWindow()
+    stylesheet = window.styleSheet()
+
+    assert isinstance(window.recursive_check, ClearCheckBox)
+    assert "QCheckBox::indicator:checked" in stylesheet
+    assert "QCheckBox::indicator:unchecked" in stylesheet
+    assert "background: #ffffff" in stylesheet
+    assert "background: #0f766e" in stylesheet
 
     window.close()
