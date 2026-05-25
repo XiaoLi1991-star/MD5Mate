@@ -206,6 +206,29 @@ class ClearCheckBox(QCheckBox):
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, self.text())
 
 
+class ClearComboBox(QComboBox):
+    """Combo box with a reliable Windows-friendly dropdown chevron."""
+
+    def paintEvent(self, event):  # noqa: N802 - Qt API
+        super().paintEvent(event)
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        button_width = 28
+        button_left = self.width() - button_width - 1
+        center_x = button_left + button_width // 2
+        center_y = self.height() // 2 + 1
+        arrow_color = QColor(COLORS["muted"] if self.isEnabled() else "#98a2b3")
+
+        painter.setPen(QPen(QColor("#d9e2ec"), 1))
+        painter.drawLine(button_left, 7, button_left, self.height() - 7)
+
+        painter.setPen(QPen(arrow_color, 1.7, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        painter.drawLine(center_x - 4, center_y - 2, center_x, center_y + 2)
+        painter.drawLine(center_x, center_y + 2, center_x + 4, center_y - 2)
+
+
 class JobWorker(QObject):
     """Runs hash or verification work away from the UI thread."""
 
@@ -502,7 +525,7 @@ class MD5MateWindow(QMainWindow):
         checksum_button.setProperty("variant", "secondary")
         checksum_button.clicked.connect(self._browse_checksum)
 
-        self.filter_combo = QComboBox()
+        self.filter_combo = ClearComboBox()
         self.filter_combo.setEditable(True)
         self.filter_combo.addItems(FILTER_PRESETS)
         self.filter_combo.setMinimumWidth(360)
@@ -860,14 +883,6 @@ class MD5MateWindow(QMainWindow):
                 background: #f8fafc;
                 border-top-right-radius: 7px;
                 border-bottom-right-radius: 7px;
-            }}
-            QComboBox::down-arrow {{
-                width: 0;
-                height: 0;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 6px solid {COLORS["muted"]};
-                margin-right: 8px;
             }}
             QComboBox QAbstractItemView {{
                 background: #ffffff;

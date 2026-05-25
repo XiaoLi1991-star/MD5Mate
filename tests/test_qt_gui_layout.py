@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QPoint  # noqa: E402
 from PySide6.QtWidgets import QAbstractSpinBox, QApplication  # noqa: E402
 
-from md5_tool.qt_gui import ClearCheckBox, MD5MateWindow  # noqa: E402
+from md5_tool.qt_gui import ClearCheckBox, ClearComboBox, MD5MateWindow  # noqa: E402
 
 
 def _app():
@@ -38,6 +38,9 @@ def test_combobox_popup_is_explicitly_light_themed():
     assert "QComboBox QAbstractItemView" in stylesheet
     assert "background: #ffffff" in stylesheet
     assert "selection-background-color: #ccfbf1" in stylesheet
+    assert "QComboBox::down-arrow" not in stylesheet
+    assert "border-left: 5px solid transparent" not in stylesheet
+    assert isinstance(window.filter_combo, ClearComboBox)
 
     window.close()
 
