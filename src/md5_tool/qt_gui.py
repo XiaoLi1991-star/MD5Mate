@@ -103,7 +103,11 @@ class DropPanel(QFrame):
         self.hint_label.setObjectName("dropHint")
         self.path_label = QLabel("尚未选择")
         self.path_label.setObjectName("dropPath")
-        self.path_label.setWordWrap(True)
+        self._full_path_text = ""
+        self._empty_path_text = self.path_label.text()
+        self.path_label.setWordWrap(False)
+        self.path_label.setMinimumWidth(0)
+        self.path_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.hint_label)
@@ -111,7 +115,26 @@ class DropPanel(QFrame):
         layout.addWidget(self.path_label)
 
     def set_path(self, value: str) -> None:
-        self.path_label.setText(value or "尚未选择")
+        self._full_path_text = value or ""
+        self.path_label.setToolTip(self._full_path_text)
+        self._refresh_path_label()
+
+    def resizeEvent(self, event):  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        self._refresh_path_label()
+
+    def _refresh_path_label(self) -> None:
+        if not self._full_path_text:
+            self.path_label.setText(self._empty_path_text)
+            return
+
+        available_width = max(80, self.path_label.width())
+        text = self.path_label.fontMetrics().elidedText(
+            self._full_path_text,
+            Qt.TextElideMode.ElideMiddle,
+            available_width,
+        )
+        self.path_label.setText(text)
 
     def mousePressEvent(self, event):  # noqa: N802 - Qt API
         if event.button() == Qt.MouseButton.LeftButton:

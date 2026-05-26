@@ -101,7 +101,7 @@ class ExeHarness:
         self.process = subprocess.Popen([str(EXE)], cwd=ROOT)
         deadline = time.time() + 25
         while time.time() < deadline:
-            windows = desktop().windows(title=APP_TITLE)
+            windows = self._owned_windows()
             if windows:
                 window = largest_window(windows)
                 set_window_bounds(window.element_info.handle)
@@ -116,10 +116,26 @@ class ExeHarness:
         kill_md5mate()
 
     def window(self):
-        windows = desktop().windows(title=APP_TITLE)
+        windows = self._owned_windows()
         if not windows:
             raise AssertionError("MD5Mate window is not present")
         return largest_window(windows)
+
+    def _owned_windows(self):
+        windows = desktop().windows(title=APP_TITLE)
+        process_ids = self._owned_process_ids()
+        if process_ids:
+            return [window for window in windows if window.element_info.process_id in process_ids]
+        return windows
+
+    def _owned_process_ids(self) -> set[int]:
+        if not self.process:
+            return set()
+        try:
+            root_process = psutil.Process(self.process.pid)
+            return {root_process.pid, *(child.pid for child in root_process.children(recursive=True))}
+        except psutil.Error:
+            return set()
 
     def controls(self, control_type: str | None = None, name: str | None = None):
         matches = []

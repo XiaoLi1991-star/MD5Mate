@@ -95,3 +95,26 @@ def test_checkbox_indicator_has_clear_checked_and_unchecked_styles():
     assert "background: #0f766e" in stylesheet
 
     window.close()
+
+
+def test_drop_panel_elides_long_directory_path_and_keeps_full_tooltip():
+    _app()
+    window = MD5MateWindow()
+    window.show()
+    QApplication.processEvents()
+
+    long_path = "D:\\" + "\\".join(["very-long-directory-name"] * 24)
+    original_height = window.directory_drop.height()
+
+    window._set_directory_from_drop(long_path)
+    QApplication.processEvents()
+
+    shown_path = window.directory_drop.path_label.text()
+    assert window.directory_edit.text() == long_path
+    assert window.directory_drop.path_label.toolTip() == long_path
+    assert not window.directory_drop.path_label.wordWrap()
+    assert shown_path != long_path
+    assert len(shown_path) < len(long_path)
+    assert window.directory_drop.height() <= original_height + 4
+
+    window.close()

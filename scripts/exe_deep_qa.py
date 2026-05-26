@@ -28,6 +28,7 @@ from exe_qa_matrix import (
 def main() -> int:
     checks: list[tuple[str, Callable[[], None]]] = [
         ("target directory can be outside exe folder", check_target_directory_outside_exe_folder),
+        ("long directory path stays compact in drop panel", check_long_directory_drop_panel_stays_compact),
         ("output stays UI-only when blank", check_blank_output_no_file),
         ("standard md5sum spacing in exported file", check_standard_md5sum_spacing),
         ("csv extension still writes md5sum lines", check_csv_extension_still_md5sum),
@@ -98,6 +99,32 @@ def check_target_directory_outside_exe_folder() -> None:
         (root / "outside.txt").write_text("outside", encoding="utf-8")
         app.run_hash(root)
         app.wait_table_contains("outside.txt")
+
+
+def check_long_directory_drop_panel_stays_compact() -> None:
+    with tempfile.TemporaryDirectory(prefix="MD5MateLongPath-") as tmp, launched_app() as app:
+        long_dir = Path(tmp)
+        for index in range(8):
+            long_dir = long_dir / f"very-long-directory-name-{index:02d}"
+        long_dir.mkdir(parents=True)
+
+        app.set_edit(0, str(long_dir))
+        wait_until(
+            lambda: any("\u2026" in text and "very-long-directory-name-07" in text for text in app.texts()),
+            "long directory path was not elided in the drop panel",
+        )
+
+        path_label = next(
+            control
+            for control in app.controls("Text")
+            if "\u2026" in control.element_info.name and "very-long-directory-name-07" in control.element_info.name
+        )
+        directory_edit = app.first("Edit", index=0)
+        choose_button = app.first("Button", "\u9009\u62e9\u76ee\u5f55")
+
+        assert directory_edit.rectangle().height() >= 34, "directory input was vertically compressed"
+        assert choose_button.rectangle().height() >= 34, "directory browse button was vertically compressed"
+        assert path_label.rectangle().bottom + 20 <= directory_edit.rectangle().top, "long path label overlaps directory input"
 
 
 def check_blank_output_no_file() -> None:
