@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Event
 
 from PySide6.QtCore import QObject, QRect, QSize, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtGui import QColor, QDesktopServices, QFont, QGuiApplication, QIcon, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -59,6 +59,7 @@ FILTER_PRESETS = [
 FORMAT_LABELS = {
     "MD5 列表": "md5",
 }
+APP_ICON_PATH = Path("assets") / "md5mate.ico"
 
 COLORS = {
     "text": "#182230",
@@ -74,6 +75,18 @@ COLORS = {
     "warning": "#b54708",
     "error": "#b42318",
 }
+
+
+def app_icon_path() -> Path:
+    base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return base_path / APP_ICON_PATH
+
+
+def app_icon() -> QIcon:
+    icon_path = app_icon_path()
+    if icon_path.exists():
+        return QIcon(str(icon_path))
+    return QIcon()
 
 
 class DropPanel(QFrame):
@@ -426,6 +439,7 @@ class MD5MateWindow(QMainWindow):
         self.verify_attention_only = False
 
         self.setWindowTitle(APP_TITLE)
+        self.setWindowIcon(app_icon())
         self.resize(1180, 760)
         self.setMinimumSize(1040, 680)
         self.setAcceptDrops(True)
@@ -1526,6 +1540,7 @@ def main() -> int:
     if app is None:
         app = QApplication(sys.argv)
     app.setApplicationName(APP_TITLE)
+    app.setWindowIcon(app_icon())
     app.setStyle("Fusion")
     window = MD5MateWindow()
     window.show()

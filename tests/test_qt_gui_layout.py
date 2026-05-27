@@ -7,11 +7,21 @@ from PySide6.QtCore import QPoint  # noqa: E402
 from PySide6.QtWidgets import QAbstractSpinBox, QApplication  # noqa: E402
 
 from md5_tool.models import ScanIssue  # noqa: E402
-from md5_tool.qt_gui import COLORS, ClearCheckBox, ClearComboBox, MD5MateWindow  # noqa: E402
+from md5_tool.qt_gui import COLORS, ClearCheckBox, ClearComboBox, MD5MateWindow, app_icon_path  # noqa: E402
 
 
 def _app():
     return QApplication.instance() or QApplication(sys.argv)
+
+
+def test_app_icon_asset_is_available_and_used_by_window():
+    _app()
+    window = MD5MateWindow()
+
+    assert app_icon_path().exists()
+    assert not window.windowIcon().isNull()
+
+    window.close()
 
 
 def test_hash_mode_keeps_core_controls_visible_and_advanced_options_fixed():

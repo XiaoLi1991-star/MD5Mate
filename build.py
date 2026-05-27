@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+ICON_PATH = Path("assets") / "md5mate.ico"
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build MD5Mate executable.")
@@ -38,6 +40,10 @@ def main(argv: list[str] | None = None) -> int:
         "--paths",
         str(root / "src"),
     ]
+    icon = root / ICON_PATH
+    if icon.exists():
+        command.extend(["--icon", str(icon)])
+        command.extend(["--add-data", f"{icon};assets"])
     if not args.debug:
         command.append("--windowed")
     command.append(str(root / "main.py"))
