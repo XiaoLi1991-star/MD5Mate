@@ -101,11 +101,11 @@ class DropPanel(QFrame):
         self.setAcceptDrops(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setFixedHeight(88)
+        self.setFixedHeight(80)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(6)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(4)
 
         self.title_label = QLabel(title)
         self.title_label.setObjectName("dropTitle")
@@ -176,11 +176,11 @@ class MetricCard(QFrame):
         super().__init__()
         self.setObjectName("metricCard")
         self.setProperty("accent", accent)
-        self.setMaximumHeight(72)
+        self.setFixedHeight(64)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(4)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(2)
 
         self.title_label = QLabel(title)
         self.title_label.setObjectName("metricTitle")
@@ -494,8 +494,8 @@ class MD5MateWindow(QMainWindow):
         workspace = QFrame()
         workspace.setObjectName("workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(24, 20, 24, 16)
-        layout.setSpacing(14)
+        layout.setContentsMargins(24, 18, 24, 14)
+        layout.setSpacing(10)
 
         layout.addWidget(self._build_header())
         layout.addWidget(self._build_metrics())
@@ -536,6 +536,7 @@ class MD5MateWindow(QMainWindow):
     def _build_metrics(self) -> QWidget:
         panel = QWidget()
         self.metrics_panel = panel
+        panel.setFixedHeight(64)
         layout = QGridLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setHorizontalSpacing(12)
@@ -555,9 +556,10 @@ class MD5MateWindow(QMainWindow):
     def _build_control_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("surface")
+        panel.setMinimumHeight(320)
         outer_layout = QVBoxLayout(panel)
         outer_layout.setContentsMargins(16, 16, 16, 16)
-        outer_layout.setSpacing(12)
+        outer_layout.setSpacing(10)
 
         self.directory_drop = DropPanel("目标目录", "拖入文件夹，或点击选择")
         self.checksum_drop = DropPanel("MD5 文件", "拖入 .md5 文件，或点击选择")
@@ -572,7 +574,7 @@ class MD5MateWindow(QMainWindow):
         drop_row.addWidget(self.directory_drop, 1)
         drop_row.addWidget(self.checksum_drop, 1)
         outer_layout.addLayout(drop_row)
-        outer_layout.addSpacing(16)
+        outer_layout.addSpacing(10)
 
         form_widget = QWidget()
         layout = QGridLayout(form_widget)
@@ -582,7 +584,7 @@ class MD5MateWindow(QMainWindow):
         layout.setColumnMinimumWidth(0, 86)
         layout.setColumnStretch(0, 0)
         layout.setColumnStretch(1, 1)
-        form_widget.setMinimumHeight(96)
+        form_widget.setMinimumHeight(112)
         outer_layout.addWidget(form_widget)
 
         self.directory_edit = QLineEdit()
@@ -680,8 +682,8 @@ class MD5MateWindow(QMainWindow):
         result_panel = QFrame()
         self.result_panel = result_panel
         result_panel.setObjectName("surface")
-        result_panel.setMinimumHeight(180)
-        result_panel.setMaximumHeight(215)
+        result_panel.setMinimumHeight(150)
+        result_panel.setMaximumHeight(180)
         result_layout = QVBoxLayout(result_panel)
         result_layout.setContentsMargins(16, 14, 16, 16)
         result_layout.setSpacing(8)
@@ -721,7 +723,7 @@ class MD5MateWindow(QMainWindow):
         self.result_table.horizontalHeader().setStretchLastSection(True)
         self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.result_table.setAlternatingRowColors(True)
-        self.result_table.setMinimumHeight(96)
+        self.result_table.setMinimumHeight(72)
         result_layout.addWidget(self.result_table, 1)
 
         return result_panel
@@ -1457,6 +1459,8 @@ class MD5MateWindow(QMainWindow):
             self.metric_success.set_title("成功")
             self.metric_failed.set_title("需处理")
         self.metric_warnings.setVisible(False)
+        if hasattr(self, "metrics_panel"):
+            self.metrics_panel.setVisible(True)
 
     def _apply_summary(self, total: int, succeeded: int, failed: int, warnings: int) -> None:
         self._set_summary_titles()
@@ -1466,7 +1470,7 @@ class MD5MateWindow(QMainWindow):
         self.metric_failed.set_value(needs_attention)
         self.metric_warnings.set_value(0)
         if hasattr(self, "metrics_panel"):
-            self.metrics_panel.setVisible(any((total, succeeded, needs_attention)))
+            self.metrics_panel.setVisible(True)
 
     def _has_attention(self, mode: str | None = None) -> bool:
         target_mode = mode or self.mode

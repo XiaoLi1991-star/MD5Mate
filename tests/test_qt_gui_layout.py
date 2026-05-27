@@ -34,7 +34,8 @@ def test_hash_mode_keeps_core_controls_visible_and_advanced_options_fixed():
     assert window.directory_drop.isVisible()
     assert not window.checksum_drop.isVisible()
     assert window.filter_combo.isVisible()
-    assert not window.metrics_panel.isVisible()
+    assert window.metrics_panel.isVisible()
+    assert window.metrics_panel.height() == 64
     assert window.advanced_panel.isVisible()
     assert not hasattr(window, "advanced_toggle")
     assert not hasattr(window, "issue_list")
@@ -202,6 +203,31 @@ def test_completed_expanded_layout_keeps_directory_row_clear_of_drop_panel():
     window.close()
 
 
+def test_verify_layout_keeps_fields_clear_when_summary_is_visible_at_minimum_size():
+    _app()
+    window = MD5MateWindow()
+    window.resize(1040, 680)
+    window.show()
+    QApplication.processEvents()
+
+    window._switch_mode("verify")
+    window._apply_summary(2, 1, 1, 0)
+    QApplication.processEvents()
+
+    directory_bottom = window.directory_edit.mapTo(window, QPoint(0, window.directory_edit.height())).y()
+    checksum_top = window.checksum_edit.mapTo(window, QPoint(0, 0)).y()
+    checksum_bottom = window.checksum_edit.mapTo(window, QPoint(0, window.checksum_edit.height())).y()
+    advanced_top = window.advanced_panel.mapTo(window, QPoint(0, 0)).y()
+    advanced_bottom = window.advanced_panel.mapTo(window, QPoint(0, window.advanced_panel.height())).y()
+    result_top = window.result_panel.mapTo(window, QPoint(0, 0)).y()
+
+    assert checksum_top - directory_bottom >= 10
+    assert advanced_top - checksum_bottom >= 10
+    assert result_top - advanced_bottom >= 16
+
+    window.close()
+
+
 def test_summary_cards_hide_warning_card_and_color_key_values():
     _app()
     window = MD5MateWindow()
@@ -209,6 +235,7 @@ def test_summary_cards_hide_warning_card_and_color_key_values():
     QApplication.processEvents()
 
     assert not window.metric_warnings.isVisible()
+    assert window.metrics_panel.isVisible()
     assert COLORS["success"] in window.metric_success.value_label.styleSheet()
     assert COLORS["error"] in window.metric_failed.value_label.styleSheet()
 
@@ -231,7 +258,7 @@ def test_result_area_is_compact_and_renders_issues_in_table_detail():
     window.show()
     QApplication.processEvents()
 
-    assert window.result_panel.maximumHeight() <= 220
+    assert window.result_panel.maximumHeight() <= 180
     assert not hasattr(window, "issue_list")
 
     window._set_issues([ScanIssue("locked.bin", "无法读取")])
