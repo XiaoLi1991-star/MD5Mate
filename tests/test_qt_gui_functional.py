@@ -111,9 +111,24 @@ def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path,
     assert window.metric_total.title_label.text() == "校验项"
     assert window.metric_success.title_label.text() == "一致"
     assert window.metric_success.value_label.text() == "1"
-    assert window.metric_warnings.value_label.text() == "1"
+    assert window.metric_failed.title_label.text() == "需处理"
+    assert window.metric_failed.value_label.text() == "1"
+    assert not window.metric_warnings.isVisible()
     assert window.status_label.text() == "校验完成，有项目需要查看说明列"
     assert warnings == []
+
+    window.verify_attention_button.click()
+    QApplication.processEvents()
+    filtered_rows = _table_rows(window)
+    assert window.verify_attention_button.text() == "显示全部"
+    assert any(row[1] == "checksums.md5" and row[-2] == "提醒" for row in filtered_rows)
+    assert all(row[1] != "check.txt" for row in filtered_rows)
+
+    window.verify_attention_button.click()
+    QApplication.processEvents()
+    verify_rows = _table_rows(window)
+    assert window.verify_attention_button.text() == "仅看异常"
+    assert any(row[1] == "check.txt" for row in verify_rows)
 
     window._switch_mode("hash")
     QApplication.processEvents()
@@ -124,7 +139,8 @@ def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path,
     assert window.metric_total.title_label.text() == "文件总数"
     assert window.metric_success.title_label.text() == "成功"
     assert window.metric_success.value_label.text() == "1"
-    assert window.metric_warnings.value_label.text() == "0"
+    assert window.metric_failed.value_label.text() == "0"
+    assert not window.metric_warnings.isVisible()
 
     window._switch_mode("verify")
     QApplication.processEvents()
@@ -183,5 +199,17 @@ def test_gui_verifies_md5_file_and_reports_all_states(tmp_path, monkeypatch):
     assert any("bad.txt" in row and "0" * 32 in row for row in table)
     assert window.metric_success.value_label.text() == "1"
     assert window.metric_failed.value_label.text() == "2"
+
+    window.verify_attention_button.click()
+    QApplication.processEvents()
+    filtered_table = _table_rows(window)
+    assert len(filtered_table) == 2
+    assert any(row[1] == "bad.txt" and row[4] == "不一致" for row in filtered_table)
+    assert any(row[1] == "missing.txt" and row[4] == "缺失" for row in filtered_table)
+    assert all(row[1] != "good.txt" for row in filtered_table)
+
+    window.verify_attention_button.click()
+    QApplication.processEvents()
+    assert window.result_table.rowCount() == 3
 
     window.close()

@@ -21,7 +21,7 @@ try:
     import win32gui
     import win32ui
     from PIL import Image, ImageStat
-    from pywinauto import Desktop
+    from pywinauto import Application, Desktop
 except ImportError as error:  # pragma: no cover - local release tooling guard.
     raise SystemExit(
         "exe_qa_matrix.py requires pywinauto, pywin32, psutil and Pillow. "
@@ -42,6 +42,8 @@ COPY_HASH = "\u590d\u5236 MD5 \u884c"
 COPY_VERIFY = "\u590d\u5236\u5b9e\u9645 MD5 \u884c"
 CLEAR = "\u6e05\u7a7a"
 RECURSIVE = "\u9012\u5f52\u626b\u63cf\u5b50\u76ee\u5f55"
+ATTENTION_ONLY = "\u4ec5\u770b\u5f02\u5e38"
+SHOW_ALL = "\u663e\u793a\u5168\u90e8"
 OK = "OK"
 
 
@@ -69,6 +71,7 @@ def main() -> int:
         ("verify mode reports matched md5 entries", check_verify_match),
         ("verify mode reports mismatched md5 entries", check_verify_mismatch),
         ("verify mode reports missing files", check_verify_missing),
+        ("verify attention filter toggles abnormal rows", check_verify_attention_filter),
         ("hash and verify result pages stay isolated", check_hash_verify_pages_isolated),
         ("verify mode reports malformed md5 files", check_verify_malformed_file),
         ("invalid directory shows a warning dialog", check_invalid_directory_warning),
@@ -122,10 +125,12 @@ class ExeHarness:
         return largest_window(windows)
 
     def _owned_windows(self):
-        windows = desktop().windows(title=APP_TITLE)
+        windows = windows_by_title(APP_TITLE)
         process_ids = self._owned_process_ids()
         if process_ids:
-            return [window for window in windows if window.element_info.process_id in process_ids]
+            owned = [window for window in windows if window.element_info.process_id in process_ids]
+            if owned:
+                return owned
         return windows
 
     def _owned_process_ids(self) -> set[int]:
@@ -228,7 +233,7 @@ def check_launch_window() -> None:
         window = app.window()
         assert window.element_info.name == APP_TITLE
         assert window.rectangle().width() >= 1000
-        assert len([w for w in desktop().windows(title=APP_TITLE) if w.rectangle().width() > 900]) == 1
+        assert len([w for w in windows_by_title(APP_TITLE) if w.rectangle().width() > 900]) == 1
 
 
 def check_default_ui() -> None:
@@ -296,7 +301,7 @@ def check_filter_dropdown_theme() -> None:
         time.sleep(0.5)
         popups = [
             window
-            for window in desktop().windows(title=APP_TITLE)
+            for window in windows_by_title(APP_TITLE)
             if window.element_info.handle != main_handle and window.rectangle().height() < 400
         ]
         assert popups, "filter dropdown popup did not open"
@@ -415,9 +420,13 @@ def check_verify_mode_layout() -> None:
     with launched_app() as app:
         app.switch_verify()
         assert not app.controls("ComboBox"), "hash filter should be hidden in verify mode"
+        assert app.controls("CheckBox", ATTENTION_ONLY), "verify attention filter button is missing"
+        assert not any(button.is_visible() for button in app.controls("Button", COPY_VERIFY))
+        assert not any(button.is_visible() for button in app.controls("Button", "\u6253\u5f00\u8f93\u51fa\u76ee\u5f55"))
         text = "\n".join(app.texts())
         assert "\u671f\u671b MD5" in text
         assert "\u5b9e\u9645 MD5" in text
+        assert "\u63d0\u9192" not in text
 
 
 def check_verify_match() -> None:
@@ -434,8 +443,7 @@ def check_verify_match() -> None:
         assert expected in table
         assert "5 B" in table
         assert "\u4e00\u81f4" in table
-        app.invoke("Button", COPY_VERIFY)
-        assert app.controls("Table"), "copy action should not close or crash the result table"
+        assert not any(button.is_visible() for button in app.controls("Button", COPY_VERIFY))
 
 
 def check_verify_mismatch() -> None:
@@ -457,6 +465,45 @@ def check_verify_missing() -> None:
         app.run_verify(root, checksum)
         app.wait_table_contains("missing.txt")
         assert "\u7f3a\u5931" in "\n".join(app.table_names())
+
+
+def check_verify_attention_filter() -> None:
+    with tempfile.TemporaryDirectory(prefix="MD5MateExeQA-") as tmp, launched_app() as app:
+        root = Path(tmp)
+        (root / "good.txt").write_text("good", encoding="utf-8")
+        (root / "bad.txt").write_text("changed", encoding="utf-8")
+        checksum = root / "checksums.md5"
+        checksum.write_text(
+            "\n".join(
+                [
+                    f"{hashlib.md5(b'good').hexdigest()}  good.txt",
+                    f"{'0' * 32}  bad.txt",
+                    "not-md5",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        app.run_verify(root, checksum)
+        app.wait_table_contains("good.txt")
+        wait_until(
+            lambda: all(token in "\n".join(app.table_names()) for token in ["bad.txt", "checksums.md5"]),
+            "verify attention setup rows did not all appear",
+        )
+        full_table = "\n".join(app.table_names())
+        assert "good.txt" in full_table
+        assert "bad.txt" in full_table
+        assert "checksums.md5" in full_table
+
+        app.invoke("CheckBox", ATTENTION_ONLY)
+        wait_until(lambda: "good.txt" not in "\n".join(app.table_names()), "matched rows were not filtered")
+        filtered_table = "\n".join(app.table_names())
+        assert "bad.txt" in filtered_table
+        assert "checksums.md5" in filtered_table
+        assert app.controls("CheckBox", SHOW_ALL)
+
+        app.invoke("CheckBox", SHOW_ALL)
+        app.wait_table_contains("good.txt")
 
 
 def check_hash_verify_pages_isolated() -> None:
@@ -526,6 +573,23 @@ class launched_app:
 
 def desktop() -> Desktop:
     return Desktop(backend="uia")
+
+
+def windows_by_title(title: str):
+    hwnds: list[int] = []
+
+    def collect(hwnd: int, _extra) -> None:
+        if win32gui.GetWindowText(hwnd) == title:
+            hwnds.append(hwnd)
+
+    win32gui.EnumWindows(collect, None)
+    windows = []
+    for hwnd in hwnds:
+        try:
+            windows.append(Application(backend="uia").connect(handle=hwnd).window(handle=hwnd))
+        except Exception:
+            continue
+    return windows
 
 
 def largest_window(windows):

@@ -28,6 +28,9 @@ def test_hash_mode_keeps_core_controls_visible_and_advanced_options_fixed():
     assert window.advanced_panel.isVisible()
     assert not hasattr(window, "advanced_toggle")
     assert not hasattr(window, "issue_list")
+    assert window.copy_button.isVisible()
+    assert window.open_output_button.isVisible()
+    assert not window.verify_attention_button.isVisible()
 
     window.close()
 
@@ -66,6 +69,10 @@ def test_advanced_options_are_fixed_and_verify_mode_field_visibility():
     assert window.advanced_panel.isVisible()
     assert not hasattr(window, "format_combo")
     assert window.threads_spin.isVisible()
+    assert not window.copy_button.isVisible()
+    assert not window.open_output_button.isVisible()
+    assert window.verify_attention_button.isVisible()
+    assert window.verify_attention_button.text() == "仅看异常"
 
     window.close()
 
@@ -181,6 +188,29 @@ def test_completed_expanded_layout_keeps_directory_row_clear_of_drop_panel():
     filter_top = window.filter_combo.mapTo(window, QPoint(0, 0)).y()
     assert directory_top - drop_bottom >= 22
     assert filter_top - directory_bottom >= 10
+
+    window.close()
+
+
+def test_summary_cards_hide_warning_card_and_color_key_values():
+    _app()
+    window = MD5MateWindow()
+    window.show()
+    QApplication.processEvents()
+
+    assert not window.metric_warnings.isVisible()
+    assert COLORS["success"] in window.metric_success.value_label.styleSheet()
+    assert COLORS["error"] in window.metric_failed.value_label.styleSheet()
+
+    window._switch_mode("verify")
+    window._apply_summary(3, 1, 1, 1)
+    QApplication.processEvents()
+
+    assert window.metric_total.title_label.text() == "校验项"
+    assert window.metric_success.title_label.text() == "一致"
+    assert window.metric_failed.title_label.text() == "需处理"
+    assert window.metric_failed.value_label.text() == "2"
+    assert not window.metric_warnings.isVisible()
 
     window.close()
 

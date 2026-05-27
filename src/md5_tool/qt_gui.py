@@ -173,6 +173,13 @@ class MetricCard(QFrame):
         self.title_label.setObjectName("metricTitle")
         self.value_label = QLabel(value)
         self.value_label.setObjectName("metricValue")
+        accent_color = {
+            "blue": COLORS["blue"],
+            "success": COLORS["success"],
+            "error": COLORS["error"],
+        }.get(accent)
+        if accent_color:
+            self.value_label.setStyleSheet(f"color: {accent_color};")
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.value_label)
@@ -416,6 +423,7 @@ class MD5MateWindow(QMainWindow):
         self.output_summary: OutputSummary | None = None
         self.hash_output_summary: OutputSummary | None = None
         self.running_mode: str | None = None
+        self.verify_attention_only = False
 
         self.setWindowTitle(APP_TITLE)
         self.resize(1180, 760)
@@ -521,7 +529,7 @@ class MD5MateWindow(QMainWindow):
 
         self.metric_total = MetricCard("文件总数", accent="blue")
         self.metric_success = MetricCard("成功", accent="success")
-        self.metric_failed = MetricCard("失败", accent="warning")
+        self.metric_failed = MetricCard("失败", accent="error")
         self.metric_warnings = MetricCard("提醒", accent="neutral")
 
         for index, card in enumerate(
@@ -673,6 +681,10 @@ class MD5MateWindow(QMainWindow):
         self.open_output_button = QPushButton("打开输出目录")
         self.open_output_button.setProperty("variant", "secondary")
         self.open_output_button.clicked.connect(self._open_output_folder)
+        self.verify_attention_button = QPushButton("仅看异常")
+        self.verify_attention_button.setCheckable(True)
+        self.verify_attention_button.setProperty("variant", "secondary")
+        self.verify_attention_button.clicked.connect(self._toggle_verify_attention_filter)
         clear_button = QPushButton("清空")
         clear_button.setProperty("variant", "ghost")
         clear_button.clicked.connect(self._clear_current_results)
@@ -680,6 +692,7 @@ class MD5MateWindow(QMainWindow):
         result_header.addStretch(1)
         result_header.addWidget(self.copy_button)
         result_header.addWidget(self.open_output_button)
+        result_header.addWidget(self.verify_attention_button)
         result_header.addWidget(clear_button)
         result_layout.addLayout(result_header)
 
@@ -842,6 +855,15 @@ class MD5MateWindow(QMainWindow):
                 color: {COLORS["text"]};
                 font-size: 22pt;
                 font-weight: 800;
+            }}
+            QFrame#metricCard[accent="blue"] QLabel#metricValue {{
+                color: {COLORS["blue"]};
+            }}
+            QFrame#metricCard[accent="success"] QLabel#metricValue {{
+                color: {COLORS["success"]};
+            }}
+            QFrame#metricCard[accent="error"] QLabel#metricValue {{
+                color: {COLORS["error"]};
             }}
             QLabel#sectionTitle {{
                 color: {COLORS["text"]};
@@ -1024,7 +1046,11 @@ class MD5MateWindow(QMainWindow):
             else "批量扫描目录，生成标准 MD5 行，可复制或导出。"
         )
         self.start_button.setText("开始校验" if is_verify else "开始计算")
-        self.copy_button.setText("复制实际 MD5 行" if is_verify else "复制 MD5 行")
+        self.copy_button.setText("复制 MD5 行")
+        self.copy_button.setVisible(not is_verify)
+        self.open_output_button.setVisible(not is_verify)
+        self.verify_attention_button.setVisible(is_verify)
+        self._update_verify_attention_button()
         self._set_headers()
         for widget in self.checksum_widgets:
             widget.setVisible(is_verify)
@@ -1152,7 +1178,7 @@ class MD5MateWindow(QMainWindow):
 
     def _append_verification_result(self, result: VerificationResult) -> None:
         self.verify_results.append(result)
-        if self.mode == "verify":
+        if self.mode == "verify" and self._should_show_verification_result(result):
             self._append_verification_row(result)
 
     def _append_hash_row(self, result: FileHashResult) -> None:
@@ -1233,6 +1259,18 @@ class MD5MateWindow(QMainWindow):
             values = ["-", title, "-", "提醒", message]
         self._append_table_row(values, "warning")
 
+    def _toggle_verify_attention_filter(self) -> None:
+        self.verify_attention_only = self.verify_attention_button.isChecked()
+        self._update_verify_attention_button()
+        self._show_current_mode_results()
+
+    def _update_verify_attention_button(self) -> None:
+        self.verify_attention_button.setChecked(self.verify_attention_only)
+        self.verify_attention_button.setText("显示全部" if self.verify_attention_only else "仅看异常")
+
+    def _should_show_verification_result(self, result: VerificationResult) -> bool:
+        return not self.verify_attention_only or not result.ok
+
     def _clear_current_results(self) -> None:
         self.result_table.setRowCount(0)
         if self.mode == "verify":
@@ -1258,7 +1296,8 @@ class MD5MateWindow(QMainWindow):
             self.result_table.setRowCount(0)
             self._render_issues()
             for result in self.verify_results:
-                self._append_verification_row(result)
+                if self._should_show_verification_result(result):
+                    self._append_verification_row(result)
             summary = summarize_verification_results(self.verify_results, self.issues)
         else:
             self.output_summary = self.hash_output_summary
@@ -1398,22 +1437,22 @@ class MD5MateWindow(QMainWindow):
         if self.mode == "verify":
             self.metric_total.set_title("校验项")
             self.metric_success.set_title("一致")
-            self.metric_failed.set_title("异常")
-            self.metric_warnings.set_title("提醒")
+            self.metric_failed.set_title("需处理")
         else:
             self.metric_total.set_title("文件总数")
             self.metric_success.set_title("成功")
-            self.metric_failed.set_title("失败")
-            self.metric_warnings.set_title("提醒")
+            self.metric_failed.set_title("需处理")
+        self.metric_warnings.setVisible(False)
 
     def _apply_summary(self, total: int, succeeded: int, failed: int, warnings: int) -> None:
         self._set_summary_titles()
+        needs_attention = failed + warnings
         self.metric_total.set_value(total)
         self.metric_success.set_value(succeeded)
-        self.metric_failed.set_value(failed)
-        self.metric_warnings.set_value(warnings)
+        self.metric_failed.set_value(needs_attention)
+        self.metric_warnings.set_value(0)
         if hasattr(self, "metrics_panel"):
-            self.metrics_panel.setVisible(any((total, succeeded, failed, warnings)))
+            self.metrics_panel.setVisible(any((total, succeeded, needs_attention)))
 
     def _has_attention(self, mode: str | None = None) -> bool:
         target_mode = mode or self.mode
