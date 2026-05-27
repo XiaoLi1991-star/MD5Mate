@@ -35,7 +35,7 @@ def test_hash_mode_keeps_core_controls_visible_and_advanced_options_fixed():
     assert not window.checksum_drop.isVisible()
     assert window.filter_combo.isVisible()
     assert window.metrics_panel.isVisible()
-    assert window.metrics_panel.height() == 64
+    assert window.metrics_panel.height() == 50
     assert window.advanced_panel.isVisible()
     assert not hasattr(window, "advanced_toggle")
     assert not hasattr(window, "issue_list")
@@ -197,7 +197,7 @@ def test_completed_expanded_layout_keeps_directory_row_clear_of_drop_panel():
     directory_top = window.directory_edit.mapTo(window, QPoint(0, 0)).y()
     directory_bottom = window.directory_edit.mapTo(window, QPoint(0, window.directory_edit.height())).y()
     filter_top = window.filter_combo.mapTo(window, QPoint(0, 0)).y()
-    assert directory_top - drop_bottom >= 22
+    assert directory_top - drop_bottom >= 10
     assert filter_top - directory_bottom >= 10
 
     window.close()
@@ -252,13 +252,15 @@ def test_summary_cards_hide_warning_card_and_color_key_values():
     window.close()
 
 
-def test_result_area_is_compact_and_renders_issues_in_table_detail():
+def test_result_area_is_primary_and_renders_issues_in_table_detail():
     _app()
     window = MD5MateWindow()
     window.show()
     QApplication.processEvents()
 
-    assert window.result_panel.maximumHeight() <= 180
+    assert window.result_panel.height() >= 220
+    assert window.result_table.height() >= 140
+    assert window.result_panel.maximumHeight() > 1000
     assert not hasattr(window, "issue_list")
 
     window._set_issues([ScanIssue("locked.bin", "无法读取")])

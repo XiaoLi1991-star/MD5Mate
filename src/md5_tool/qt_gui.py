@@ -101,11 +101,11 @@ class DropPanel(QFrame):
         self.setAcceptDrops(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setFixedHeight(80)
+        self.setFixedHeight(64)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(4)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(1)
 
         self.title_label = QLabel(title)
         self.title_label.setObjectName("dropTitle")
@@ -176,11 +176,11 @@ class MetricCard(QFrame):
         super().__init__()
         self.setObjectName("metricCard")
         self.setProperty("accent", accent)
-        self.setFixedHeight(64)
+        self.setFixedHeight(50)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(2)
+        layout.setContentsMargins(14, 7, 14, 7)
+        layout.setSpacing(0)
 
         self.title_label = QLabel(title)
         self.title_label.setObjectName("metricTitle")
@@ -440,7 +440,7 @@ class MD5MateWindow(QMainWindow):
 
         self.setWindowTitle(APP_TITLE)
         self.setWindowIcon(app_icon())
-        self.resize(1180, 760)
+        self.resize(1180, 800)
         self.setMinimumSize(1040, 680)
         self.setAcceptDrops(True)
         self._build_ui()
@@ -494,13 +494,13 @@ class MD5MateWindow(QMainWindow):
         workspace = QFrame()
         workspace.setObjectName("workspace")
         layout = QVBoxLayout(workspace)
-        layout.setContentsMargins(24, 18, 24, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(24, 12, 24, 10)
+        layout.setSpacing(6)
 
         layout.addWidget(self._build_header())
         layout.addWidget(self._build_metrics())
         layout.addWidget(self._build_control_panel())
-        layout.addWidget(self._build_result_area())
+        layout.addWidget(self._build_result_area(), 1)
         layout.addWidget(self._build_footer())
         return workspace
 
@@ -536,7 +536,7 @@ class MD5MateWindow(QMainWindow):
     def _build_metrics(self) -> QWidget:
         panel = QWidget()
         self.metrics_panel = panel
-        panel.setFixedHeight(64)
+        panel.setFixedHeight(50)
         layout = QGridLayout(panel)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setHorizontalSpacing(12)
@@ -556,10 +556,10 @@ class MD5MateWindow(QMainWindow):
     def _build_control_panel(self) -> QWidget:
         panel = QFrame()
         panel.setObjectName("surface")
-        panel.setMinimumHeight(320)
+        panel.setMinimumHeight(264)
         outer_layout = QVBoxLayout(panel)
-        outer_layout.setContentsMargins(16, 16, 16, 16)
-        outer_layout.setSpacing(10)
+        outer_layout.setContentsMargins(12, 12, 12, 12)
+        outer_layout.setSpacing(6)
 
         self.directory_drop = DropPanel("目标目录", "拖入文件夹，或点击选择")
         self.checksum_drop = DropPanel("MD5 文件", "拖入 .md5 文件，或点击选择")
@@ -574,17 +574,17 @@ class MD5MateWindow(QMainWindow):
         drop_row.addWidget(self.directory_drop, 1)
         drop_row.addWidget(self.checksum_drop, 1)
         outer_layout.addLayout(drop_row)
-        outer_layout.addSpacing(10)
+        outer_layout.addSpacing(4)
 
         form_widget = QWidget()
         layout = QGridLayout(form_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setHorizontalSpacing(14)
-        layout.setVerticalSpacing(12)
+        layout.setVerticalSpacing(8)
         layout.setColumnMinimumWidth(0, 86)
         layout.setColumnStretch(0, 0)
         layout.setColumnStretch(1, 1)
-        form_widget.setMinimumHeight(112)
+        form_widget.setMinimumHeight(88)
         outer_layout.addWidget(form_widget)
 
         self.directory_edit = QLineEdit()
@@ -657,8 +657,8 @@ class MD5MateWindow(QMainWindow):
         self.advanced_panel = QFrame()
         self.advanced_panel.setObjectName("advancedPanel")
         advanced_layout = QHBoxLayout(self.advanced_panel)
-        advanced_layout.setContentsMargins(12, 12, 12, 12)
-        advanced_layout.setSpacing(10)
+        advanced_layout.setContentsMargins(8, 8, 8, 8)
+        advanced_layout.setSpacing(8)
         outer_layout.addWidget(self.advanced_panel)
 
         output_label = QLabel("输出")
@@ -682,11 +682,11 @@ class MD5MateWindow(QMainWindow):
         result_panel = QFrame()
         self.result_panel = result_panel
         result_panel.setObjectName("surface")
-        result_panel.setMinimumHeight(150)
-        result_panel.setMaximumHeight(180)
+        result_panel.setMinimumHeight(220)
+        result_panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         result_layout = QVBoxLayout(result_panel)
-        result_layout.setContentsMargins(16, 14, 16, 16)
-        result_layout.setSpacing(8)
+        result_layout.setContentsMargins(16, 10, 16, 12)
+        result_layout.setSpacing(6)
 
         result_header = QHBoxLayout()
         result_title = QLabel("结果")
@@ -723,7 +723,7 @@ class MD5MateWindow(QMainWindow):
         self.result_table.horizontalHeader().setStretchLastSection(True)
         self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.result_table.setAlternatingRowColors(True)
-        self.result_table.setMinimumHeight(72)
+        self.result_table.setMinimumHeight(130)
         result_layout.addWidget(self.result_table, 1)
 
         return result_panel
@@ -840,7 +840,7 @@ class MD5MateWindow(QMainWindow):
             }}
             QLabel#pageTitle {{
                 color: {COLORS["text"]};
-                font-size: 22pt;
+                font-size: 20pt;
                 font-weight: 800;
             }}
             QLabel#pageSubtitle {{
@@ -864,12 +864,12 @@ class MD5MateWindow(QMainWindow):
             }}
             QLabel#metricTitle {{
                 color: {COLORS["muted"]};
-                font-size: 9.5pt;
+                font-size: 8.5pt;
                 font-weight: 700;
             }}
             QLabel#metricValue {{
                 color: {COLORS["text"]};
-                font-size: 22pt;
+                font-size: 18pt;
                 font-weight: 800;
             }}
             QFrame#metricCard[accent="blue"] QLabel#metricValue {{
@@ -902,16 +902,16 @@ class MD5MateWindow(QMainWindow):
             }}
             QLabel#dropTitle {{
                 color: {COLORS["text"]};
-                font-size: 12pt;
+                font-size: 10.5pt;
                 font-weight: 800;
             }}
             QLabel#dropHint {{
                 color: {COLORS["muted"]};
-                font-size: 9.5pt;
+                font-size: 8.5pt;
             }}
             QLabel#dropPath {{
                 color: {COLORS["teal_dark"]};
-                font-size: 9pt;
+                font-size: 8.5pt;
             }}
             QLineEdit, QComboBox, QSpinBox {{
                 min-height: 34px;
