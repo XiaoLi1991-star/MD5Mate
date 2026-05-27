@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Callable
 
 from exe_qa_matrix import (
-    ADVANCED_SHOW,
     EXE,
     OK,
     RECURSIVE,

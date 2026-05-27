@@ -27,6 +27,18 @@ def _wait_until(predicate, *, timeout=8):
     raise AssertionError("Timed out waiting for GUI operation")
 
 
+def _table_rows(window: MD5MateWindow) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for row in range(window.result_table.rowCount()):
+        rows.append(
+            [
+                window.result_table.item(row, column).text() if window.result_table.item(row, column) else ""
+                for column in range(window.result_table.columnCount())
+            ]
+        )
+    return rows
+
+
 def test_gui_calculates_md5_rows_from_selected_directory(tmp_path):
     first = tmp_path / "alpha.txt"
     second = tmp_path / "beta.log"
@@ -48,10 +60,59 @@ def test_gui_calculates_md5_rows_from_selected_directory(tmp_path):
 
     by_name = {result.relative_path: result for result in window.hash_results}
     assert window.result_table.rowCount() == 2
+    table = _table_rows(window)
+    assert any("alpha.txt" in row and hashlib.md5(b"alpha").hexdigest() in row for row in table)
+    assert any("beta.log" in row and hashlib.md5(b"beta").hexdigest() in row for row in table)
     assert by_name["alpha.txt"].md5 == hashlib.md5(b"alpha").hexdigest()
     assert by_name["beta.log"].md5 == hashlib.md5(b"beta").hexdigest()
     assert "skip.bin" not in by_name
     assert window.metric_success.value_label.text() == "2"
+
+    window.close()
+
+
+def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path, monkeypatch):
+    monkeypatch.setattr(qt_gui.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(qt_gui.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    source = tmp_path / "source.hashonly"
+    check_file = tmp_path / "check.txt"
+    source.write_text("source", encoding="utf-8")
+    check_file.write_text("check", encoding="utf-8")
+    md5_file = tmp_path / "checksums.md5"
+    md5_file.write_text(f"{hashlib.md5(b'check').hexdigest()}  check.txt", encoding="utf-8")
+
+    _app()
+    window = MD5MateWindow()
+    window.show()
+    QApplication.processEvents()
+
+    window.directory_edit.setText(str(tmp_path))
+    window.filter_combo.setCurrentText(".hashonly")
+    window.start_button.click()
+    _wait_until(lambda: window.thread is None)
+
+    assert window.mode == "hash"
+    assert _table_rows(window)[0][1] == "source.hashonly"
+
+    window._switch_mode("verify")
+    window.directory_edit.setText(str(tmp_path))
+    window.checksum_edit.setText(str(md5_file))
+    window.start_button.click()
+    _wait_until(lambda: window.thread is None)
+
+    assert window.mode == "verify"
+    assert _table_rows(window)[0][1] == "check.txt"
+
+    window._switch_mode("hash")
+    QApplication.processEvents()
+    assert window.mode == "hash"
+    assert _table_rows(window)[0][1] == "source.hashonly"
+    assert window.metric_success.value_label.text() == "1"
+
+    window._switch_mode("verify")
+    QApplication.processEvents()
+    assert _table_rows(window)[0][1] == "check.txt"
 
     window.close()
 
@@ -94,6 +155,14 @@ def test_gui_verifies_md5_file_and_reports_all_states(tmp_path, monkeypatch):
         "missing.txt": "missing",
     }
     assert window.result_table.rowCount() == 3
+    table = _table_rows(window)
+    assert any(
+        "good.txt" in row
+        and hashlib.md5(b"good").hexdigest() in row
+        and hashlib.md5(b"good").hexdigest() in row
+        for row in table
+    )
+    assert any("bad.txt" in row and "0" * 32 in row for row in table)
     assert window.metric_success.value_label.text() == "1"
     assert window.metric_failed.value_label.text() == "2"
 

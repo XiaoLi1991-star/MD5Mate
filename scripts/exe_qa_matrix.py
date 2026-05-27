@@ -38,7 +38,6 @@ VERIFY_NAV = "\u6821\u9a8c .md5"
 START_HASH = "\u5f00\u59cb\u8ba1\u7b97"
 START_VERIFY = "\u5f00\u59cb\u6821\u9a8c"
 STOP = "\u505c\u6b62"
-ADVANCED_SHOW = "\u663e\u793a\u9ad8\u7ea7\u9009\u9879"
 COPY_HASH = "\u590d\u5236 MD5 \u884c"
 COPY_VERIFY = "\u590d\u5236\u5b9e\u9645 MD5 \u884c"
 CLEAR = "\u6e05\u7a7a"
@@ -54,8 +53,8 @@ def main() -> int:
         ("key controls fit inside the window", check_controls_in_bounds),
         ("stop is disabled before a job starts", check_stop_initially_disabled),
         ("filter help/question button is absent", check_no_question_button),
-        ("advanced options are collapsed by default", check_advanced_collapsed),
-        ("advanced options expand with output/thread controls", check_advanced_expands),
+        ("advanced options are fixed by default", check_advanced_fixed),
+        ("advanced options keep output/thread controls aligned", check_advanced_controls_aligned),
         ("filter dropdown popup stays light themed", check_filter_dropdown_theme),
         ("hash mode displays results when output path is blank", check_hash_no_output_file),
         ("hash filtering includes txt and excludes bin", check_hash_filter_txt_only),
@@ -173,8 +172,7 @@ class ExeHarness:
         time.sleep(0.25)
 
     def open_advanced(self) -> None:
-        self.invoke("CheckBox", ADVANCED_SHOW)
-        wait_until(lambda: bool(self.controls("Spinner")), "advanced options did not expand")
+        wait_until(lambda: bool(self.controls("Spinner")), "advanced options are not visible")
 
     def switch_verify(self) -> None:
         self.invoke("CheckBox", VERIFY_NAV)
@@ -268,15 +266,16 @@ def check_no_question_button() -> None:
         assert not app.controls("Button", "?"), "the filter question button should not be present"
 
 
-def check_advanced_collapsed() -> None:
+def check_advanced_fixed() -> None:
     with launched_app() as app:
-        assert not app.controls("Spinner")
-        assert not any(text == "\u8f93\u51fa" for text in app.texts())
+        assert app.controls("Spinner")
+        assert app.controls("CheckBox", RECURSIVE)
+        assert any(text == "\u8f93\u51fa" for text in app.texts())
+        assert not any(text in {"\u663e\u793a\u9ad8\u7ea7\u9009\u9879", "\u6536\u8d77\u9ad8\u7ea7\u9009\u9879"} for text in app.texts())
 
 
-def check_advanced_expands() -> None:
+def check_advanced_controls_aligned() -> None:
     with launched_app() as app:
-        app.open_advanced()
         assert app.controls("Spinner")
         assert app.controls("CheckBox", RECURSIVE)
         assert len(app.controls("Edit")) >= 3

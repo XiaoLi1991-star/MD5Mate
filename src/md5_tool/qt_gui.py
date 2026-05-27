@@ -413,8 +413,11 @@ class MD5MateWindow(QMainWindow):
         self.worker: JobWorker | None = None
         self.hash_results: list[FileHashResult] = []
         self.verify_results: list[VerificationResult] = []
+        self.hash_issues: list[ScanIssue] = []
+        self.verify_issues: list[ScanIssue] = []
         self.issues: list[ScanIssue] = []
         self.output_summary: OutputSummary | None = None
+        self.hash_output_summary: OutputSummary | None = None
 
         self.setWindowTitle(APP_TITLE)
         self.resize(1180, 760)
@@ -629,16 +632,6 @@ class MD5MateWindow(QMainWindow):
         self.filter_label, self.filter_row = self._add_labeled_row(layout, 2, "筛选", self.filter_combo)
         self.filter_widgets = [self.filter_label, self.filter_row]
 
-        advanced_header = QHBoxLayout()
-        advanced_header.setContentsMargins(0, 0, 0, 0)
-        advanced_header.addStretch(1)
-        self.advanced_toggle = QPushButton("显示高级选项")
-        self.advanced_toggle.setCheckable(True)
-        self.advanced_toggle.setProperty("variant", "ghost")
-        self.advanced_toggle.clicked.connect(self._toggle_advanced_options)
-        advanced_header.addWidget(self.advanced_toggle)
-        outer_layout.addLayout(advanced_header)
-
         self.advanced_panel = QFrame()
         self.advanced_panel.setObjectName("advancedPanel")
         advanced_layout = QHBoxLayout(self.advanced_panel)
@@ -661,7 +654,6 @@ class MD5MateWindow(QMainWindow):
         advanced_layout.addWidget(self.recursive_check)
         self.output_widgets = [output_label, self.output_edit, output_button, clear_output_button]
         self.hash_option_widgets = [self.recursive_check]
-        self.advanced_panel.setVisible(False)
         return panel
 
     def _build_result_area(self) -> QWidget:
@@ -685,7 +677,7 @@ class MD5MateWindow(QMainWindow):
         self.open_output_button.clicked.connect(self._open_output_folder)
         clear_button = QPushButton("清空")
         clear_button.setProperty("variant", "ghost")
-        clear_button.clicked.connect(self._clear_results)
+        clear_button.clicked.connect(self._clear_current_results)
         result_header.addWidget(result_title)
         result_header.addStretch(1)
         result_header.addWidget(self.copy_button)
@@ -1065,11 +1057,8 @@ class MD5MateWindow(QMainWindow):
             widget.setVisible(not is_verify)
         self.filter_combo.setEnabled(not is_verify)
         self.recursive_check.setEnabled(not is_verify)
-        self._reset_summary()
-
-    def _toggle_advanced_options(self, checked: bool) -> None:
-        self.advanced_panel.setVisible(checked)
-        self.advanced_toggle.setText("收起高级选项" if checked else "显示高级选项")
+        self.advanced_panel.setVisible(True)
+        self._show_current_mode_results()
 
     def _set_headers(self) -> None:
         if self.mode == "verify":
@@ -1089,7 +1078,7 @@ class MD5MateWindow(QMainWindow):
             self._show_warning("请选择一个有效目录。")
             return
 
-        self._clear_results()
+        self._clear_current_results()
         params: dict[str, object] = {
             "directory": str(directory),
             "threads": normalize_thread_count(self.threads_spin.value()),
@@ -1145,23 +1134,25 @@ class MD5MateWindow(QMainWindow):
                 self._add_issue("运行错误", str(details))
             return
 
-        self.output_summary = payload.get("output_summary")  # type: ignore[assignment]
-        self.issues = list(payload.get("issues", []))  # type: ignore[arg-type]
-        if self.mode == "verify":
+        payload_mode = str(payload.get("mode", self.mode))
+        issues = list(payload.get("issues", []))  # type: ignore[arg-type]
+        if payload_mode == "verify":
+            self.verify_issues = issues
             self.verify_results = list(payload.get("results", []))  # type: ignore[arg-type]
-            self._reload_verification_table()
-            summary = summarize_verification_results(self.verify_results, self.issues)
-            self._apply_summary(summary.total, summary.succeeded, summary.failed, summary.warnings)
-            self._set_status("校验完成")
+            if self.mode == "verify":
+                self._show_current_mode_results()
+                self._set_status("校验完成")
         else:
+            self.hash_issues = issues
+            self.hash_output_summary = payload.get("output_summary")  # type: ignore[assignment]
+            self.output_summary = self.hash_output_summary
             self.hash_results = list(payload.get("results", []))  # type: ignore[arg-type]
-            self._reload_hash_table()
-            summary = summarize_hash_results(self.hash_results, self.issues)
-            self._apply_summary(summary.total, summary.succeeded, summary.failed, summary.warnings)
-            if self.output_summary:
-                self._set_status(f"完成，结果已保存到 {self.output_summary.output_path}")
-            else:
-                self._set_status("完成，结果已在界面中展示")
+            if self.mode == "hash":
+                self._show_current_mode_results()
+                if self.output_summary:
+                    self._set_status(f"完成，结果已保存到 {self.output_summary.output_path}")
+                else:
+                    self._set_status("完成，结果已在界面中展示")
 
         if self._has_attention():
             QMessageBox.warning(self, APP_TITLE, "任务已完成，但有文件需要处理。请查看右侧提醒。")
@@ -1172,11 +1163,13 @@ class MD5MateWindow(QMainWindow):
 
     def _append_hash_result(self, result: FileHashResult) -> None:
         self.hash_results.append(result)
-        self._append_hash_row(result)
+        if self.mode == "hash":
+            self._append_hash_row(result)
 
     def _append_verification_result(self, result: VerificationResult) -> None:
         self.verify_results.append(result)
-        self._append_verification_row(result)
+        if self.mode == "verify":
+            self._append_verification_row(result)
 
     def _append_hash_row(self, result: FileHashResult) -> None:
         row_data = build_hash_rows([result])[0]
@@ -1223,7 +1216,15 @@ class MD5MateWindow(QMainWindow):
             self._append_verification_row(result)
 
     def _set_issues(self, issues: list[ScanIssue]) -> None:
-        self.issues = list(issues)
+        if self.mode == "verify":
+            self.verify_issues = list(issues)
+            self.issues = self.verify_issues
+        else:
+            self.hash_issues = list(issues)
+            self.issues = self.hash_issues
+        self._render_issues()
+
+    def _render_issues(self) -> None:
         self.issue_list.clear()
         if not self.issues:
             self.issue_list.addItem("暂无提醒")
@@ -1238,18 +1239,43 @@ class MD5MateWindow(QMainWindow):
         item.setForeground(QColor(COLORS["warning"]))
         self.issue_list.addItem(item)
 
-    def _clear_results(self) -> None:
+    def _clear_current_results(self) -> None:
         self.result_table.setRowCount(0)
         self.issue_list.clear()
         self.issue_list.addItem("暂无提醒")
-        self.hash_results = []
-        self.verify_results = []
-        self.issues = []
-        self.output_summary = None
+        if self.mode == "verify":
+            self.verify_results = []
+            self.verify_issues = []
+            self.issues = self.verify_issues
+            self.output_summary = None
+        else:
+            self.hash_results = []
+            self.hash_issues = []
+            self.issues = self.hash_issues
+            self.hash_output_summary = None
+            self.output_summary = None
         self.progress.setValue(0)
         self.progress.setFormat("0 / 0")
         self._reset_summary()
         self._set_status("就绪")
+
+    def _show_current_mode_results(self) -> None:
+        if self.mode == "verify":
+            self.output_summary = None
+            self.issues = self.verify_issues
+            self._reload_verification_table()
+            summary = summarize_verification_results(self.verify_results, self.issues)
+        else:
+            self.output_summary = self.hash_output_summary
+            self.issues = self.hash_issues
+            self._reload_hash_table()
+            summary = summarize_hash_results(self.hash_results, self.issues)
+
+        self._render_issues()
+        if summary.total or summary.warnings:
+            self._apply_summary(summary.total, summary.succeeded, summary.failed, summary.warnings)
+        else:
+            self._reset_summary()
 
     def _copy_md5_lines(self) -> None:
         if self.mode == "verify":

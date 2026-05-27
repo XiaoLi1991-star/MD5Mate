@@ -263,10 +263,8 @@ def check_gui_verify_mode_visibility() -> None:
         app.processEvents()
         assert window.checksum_drop.isVisible()
         assert not window.filter_combo.isVisible()
-        assert not window.threads_spin.isVisible()
-        window.advanced_toggle.click()
-        app.processEvents()
         assert window.threads_spin.isVisible()
+        assert not hasattr(window, 'advanced_toggle')
         window.close()
         """,
         env={"QT_QPA_PLATFORM": "offscreen"},

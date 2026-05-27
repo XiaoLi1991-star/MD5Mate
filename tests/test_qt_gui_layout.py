@@ -13,7 +13,7 @@ def _app():
     return QApplication.instance() or QApplication(sys.argv)
 
 
-def test_hash_mode_keeps_core_controls_visible_and_advanced_options_collapsed():
+def test_hash_mode_keeps_core_controls_visible_and_advanced_options_fixed():
     _app()
     window = MD5MateWindow()
     window.show()
@@ -24,8 +24,8 @@ def test_hash_mode_keeps_core_controls_visible_and_advanced_options_collapsed():
     assert not window.checksum_drop.isVisible()
     assert window.filter_combo.isVisible()
     assert not window.metrics_panel.isVisible()
-    assert not window.advanced_panel.isVisible()
-    assert window.advanced_toggle.text() == "显示高级选项"
+    assert window.advanced_panel.isVisible()
+    assert not hasattr(window, "advanced_toggle")
 
     window.close()
 
@@ -45,16 +45,13 @@ def test_combobox_popup_is_explicitly_light_themed():
     window.close()
 
 
-def test_advanced_options_toggle_and_verify_mode_field_visibility():
+def test_advanced_options_are_fixed_and_verify_mode_field_visibility():
     _app()
     window = MD5MateWindow()
     window.show()
     QApplication.processEvents()
 
-    window.advanced_toggle.click()
-    QApplication.processEvents()
     assert window.advanced_panel.isVisible()
-    assert window.advanced_toggle.text() == "收起高级选项"
     output_right = window.output_edit.mapTo(window, QPoint(window.output_edit.width(), 0)).x()
     threads_left = window.threads_spin.mapTo(window, QPoint(0, 0)).x()
     assert output_right + 8 <= threads_left
@@ -64,6 +61,7 @@ def test_advanced_options_toggle_and_verify_mode_field_visibility():
     assert window.checksum_drop.isVisible()
     assert not window.filter_combo.isVisible()
     assert not window.output_edit.isVisible()
+    assert window.advanced_panel.isVisible()
     assert not hasattr(window, "format_combo")
     assert window.threads_spin.isVisible()
 
@@ -149,7 +147,6 @@ def test_long_output_path_does_not_overlap_advanced_controls():
     window.show()
     QApplication.processEvents()
 
-    window.advanced_toggle.click()
     long_output = "D:\\" + "\\".join(["very-long-directory-name"] * 24) + "\\result.md5"
     window.output_edit.setText(long_output)
     QApplication.processEvents()
@@ -173,7 +170,6 @@ def test_completed_expanded_layout_keeps_directory_row_clear_of_drop_panel():
 
     window._apply_summary(1, 1, 0, 0)
     window._set_directory_from_drop("D:\\" + "\\".join(["MD5MateDeep"] * 8))
-    window.advanced_toggle.click()
     window.output_edit.setText("D:\\" + "\\".join(["MD5MateDeep"] * 8) + "\\out.md5")
     QApplication.processEvents()
 
