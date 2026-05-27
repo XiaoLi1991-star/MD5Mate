@@ -72,7 +72,8 @@ def test_gui_calculates_md5_rows_from_selected_directory(tmp_path):
 
 
 def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path, monkeypatch):
-    monkeypatch.setattr(qt_gui.QMessageBox, "warning", lambda *args, **kwargs: None)
+    warnings = []
+    monkeypatch.setattr(qt_gui.QMessageBox, "warning", lambda *args, **kwargs: warnings.append(args))
     monkeypatch.setattr(qt_gui.QMessageBox, "critical", lambda *args, **kwargs: None)
 
     source = tmp_path / "source.hashonly"
@@ -80,7 +81,7 @@ def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path,
     source.write_text("source", encoding="utf-8")
     check_file.write_text("check", encoding="utf-8")
     md5_file = tmp_path / "checksums.md5"
-    md5_file.write_text(f"{hashlib.md5(b'check').hexdigest()}  check.txt", encoding="utf-8")
+    md5_file.write_text(f"{hashlib.md5(b'check').hexdigest()}  check.txt\nnot-md5", encoding="utf-8")
 
     _app()
     window = MD5MateWindow()
@@ -94,6 +95,8 @@ def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path,
 
     assert window.mode == "hash"
     assert _table_rows(window)[0][1] == "source.hashonly"
+    assert window.metric_total.title_label.text() == "文件总数"
+    assert window.metric_success.title_label.text() == "成功"
 
     window._switch_mode("verify")
     window.directory_edit.setText(str(tmp_path))
@@ -102,17 +105,32 @@ def test_hash_and_verify_results_stay_independent_when_switching_modes(tmp_path,
     _wait_until(lambda: window.thread is None)
 
     assert window.mode == "verify"
-    assert _table_rows(window)[0][1] == "check.txt"
+    verify_rows = _table_rows(window)
+    assert any(row[1] == "check.txt" for row in verify_rows)
+    assert any(row[1] == "checksums.md5" and row[-2] == "提醒" and "第 2 行" in row[-1] for row in verify_rows)
+    assert window.metric_total.title_label.text() == "校验项"
+    assert window.metric_success.title_label.text() == "一致"
+    assert window.metric_success.value_label.text() == "1"
+    assert window.metric_warnings.value_label.text() == "1"
+    assert window.status_label.text() == "校验完成，有项目需要查看说明列"
+    assert warnings == []
 
     window._switch_mode("hash")
     QApplication.processEvents()
     assert window.mode == "hash"
-    assert _table_rows(window)[0][1] == "source.hashonly"
+    hash_rows = _table_rows(window)
+    assert hash_rows[0][1] == "source.hashonly"
+    assert all(row[1] != "checksums.md5" for row in hash_rows)
+    assert window.metric_total.title_label.text() == "文件总数"
+    assert window.metric_success.title_label.text() == "成功"
     assert window.metric_success.value_label.text() == "1"
+    assert window.metric_warnings.value_label.text() == "0"
 
     window._switch_mode("verify")
     QApplication.processEvents()
-    assert _table_rows(window)[0][1] == "check.txt"
+    verify_rows = _table_rows(window)
+    assert any(row[1] == "check.txt" for row in verify_rows)
+    assert any(row[1] == "checksums.md5" and row[-2] == "提醒" for row in verify_rows)
 
     window.close()
 

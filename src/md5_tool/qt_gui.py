@@ -22,14 +22,11 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPushButton,
     QSizePolicy,
     QSpinBox,
-    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QToolButton,
@@ -418,6 +415,7 @@ class MD5MateWindow(QMainWindow):
         self.issues: list[ScanIssue] = []
         self.output_summary: OutputSummary | None = None
         self.hash_output_summary: OutputSummary | None = None
+        self.running_mode: str | None = None
 
         self.setWindowTitle(APP_TITLE)
         self.resize(1180, 760)
@@ -480,7 +478,7 @@ class MD5MateWindow(QMainWindow):
         layout.addWidget(self._build_header())
         layout.addWidget(self._build_metrics())
         layout.addWidget(self._build_control_panel())
-        layout.addWidget(self._build_result_area(), 1)
+        layout.addWidget(self._build_result_area())
         layout.addWidget(self._build_footer())
         return workspace
 
@@ -536,8 +534,8 @@ class MD5MateWindow(QMainWindow):
         panel = QFrame()
         panel.setObjectName("surface")
         outer_layout = QVBoxLayout(panel)
-        outer_layout.setContentsMargins(18, 18, 18, 18)
-        outer_layout.setSpacing(14)
+        outer_layout.setContentsMargins(16, 16, 16, 16)
+        outer_layout.setSpacing(12)
 
         self.directory_drop = DropPanel("目标目录", "拖入文件夹，或点击选择")
         self.checksum_drop = DropPanel("MD5 文件", "拖入 .md5 文件，或点击选择")
@@ -552,7 +550,7 @@ class MD5MateWindow(QMainWindow):
         drop_row.addWidget(self.directory_drop, 1)
         drop_row.addWidget(self.checksum_drop, 1)
         outer_layout.addLayout(drop_row)
-        outer_layout.addSpacing(22)
+        outer_layout.addSpacing(16)
 
         form_widget = QWidget()
         layout = QGridLayout(form_widget)
@@ -562,7 +560,7 @@ class MD5MateWindow(QMainWindow):
         layout.setColumnMinimumWidth(0, 86)
         layout.setColumnStretch(0, 0)
         layout.setColumnStretch(1, 1)
-        form_widget.setMinimumHeight(100)
+        form_widget.setMinimumHeight(96)
         outer_layout.addWidget(form_widget)
 
         self.directory_edit = QLineEdit()
@@ -635,8 +633,8 @@ class MD5MateWindow(QMainWindow):
         self.advanced_panel = QFrame()
         self.advanced_panel.setObjectName("advancedPanel")
         advanced_layout = QHBoxLayout(self.advanced_panel)
-        advanced_layout.setContentsMargins(14, 14, 14, 14)
-        advanced_layout.setSpacing(12)
+        advanced_layout.setContentsMargins(12, 12, 12, 12)
+        advanced_layout.setSpacing(10)
         outer_layout.addWidget(self.advanced_panel)
 
         output_label = QLabel("输出")
@@ -657,14 +655,14 @@ class MD5MateWindow(QMainWindow):
         return panel
 
     def _build_result_area(self) -> QWidget:
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setChildrenCollapsible(False)
-
         result_panel = QFrame()
+        self.result_panel = result_panel
         result_panel.setObjectName("surface")
+        result_panel.setMinimumHeight(180)
+        result_panel.setMaximumHeight(215)
         result_layout = QVBoxLayout(result_panel)
-        result_layout.setContentsMargins(18, 16, 18, 18)
-        result_layout.setSpacing(12)
+        result_layout.setContentsMargins(16, 14, 16, 16)
+        result_layout.setSpacing(8)
 
         result_header = QHBoxLayout()
         result_title = QLabel("结果")
@@ -691,28 +689,15 @@ class MD5MateWindow(QMainWindow):
         self.result_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.result_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.result_table.verticalHeader().setVisible(False)
+        self.result_table.verticalHeader().setDefaultSectionSize(24)
+        self.result_table.horizontalHeader().setFixedHeight(30)
         self.result_table.horizontalHeader().setStretchLastSection(True)
         self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.result_table.setAlternatingRowColors(True)
+        self.result_table.setMinimumHeight(96)
         result_layout.addWidget(self.result_table, 1)
 
-        issue_panel = QFrame()
-        issue_panel.setObjectName("surface")
-        issue_layout = QVBoxLayout(issue_panel)
-        issue_layout.setContentsMargins(16, 16, 16, 18)
-        issue_layout.setSpacing(10)
-        issue_title = QLabel("提醒")
-        issue_title.setObjectName("sectionTitle")
-        self.issue_list = QListWidget()
-        self.issue_list.setObjectName("issueList")
-        self.issue_list.addItem("暂无提醒")
-        issue_layout.addWidget(issue_title)
-        issue_layout.addWidget(self.issue_list, 1)
-
-        splitter.addWidget(result_panel)
-        splitter.addWidget(issue_panel)
-        splitter.setSizes([900, 230])
-        return splitter
+        return result_panel
 
     def _build_footer(self) -> QWidget:
         footer = QWidget()
@@ -1018,12 +1003,6 @@ class MD5MateWindow(QMainWindow):
                 border-right: 1px solid #dde5ef;
                 padding: 9px 8px;
             }}
-            QListWidget#issueList {{
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                background: #ffffff;
-                padding: 6px;
-            }}
             QLabel#statusLabel {{
                 color: {COLORS["muted"]};
                 font-size: 10pt;
@@ -1101,7 +1080,8 @@ class MD5MateWindow(QMainWindow):
             )
 
         self._set_running(True)
-        self.worker = JobWorker(self.mode, params)
+        self.running_mode = self.mode
+        self.worker = JobWorker(self.running_mode, params)
         self.thread = QThread(self)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
@@ -1125,16 +1105,16 @@ class MD5MateWindow(QMainWindow):
 
     def _finish_job(self, payload: dict[str, object]) -> None:
         self._set_running(False)
+        payload_mode = str(payload.get("mode", self.running_mode or self.mode))
         error = payload.get("error")
         if error:
             self._set_status("任务失败")
             self._show_error(str(error))
             details = payload.get("traceback")
             if details:
-                self._add_issue("运行错误", str(details))
+                self._add_issue("运行错误", str(details), mode=payload_mode)
             return
 
-        payload_mode = str(payload.get("mode", self.mode))
         issues = list(payload.get("issues", []))  # type: ignore[arg-type]
         if payload_mode == "verify":
             self.verify_issues = issues
@@ -1145,21 +1125,25 @@ class MD5MateWindow(QMainWindow):
         else:
             self.hash_issues = issues
             self.hash_output_summary = payload.get("output_summary")  # type: ignore[assignment]
-            self.output_summary = self.hash_output_summary
             self.hash_results = list(payload.get("results", []))  # type: ignore[arg-type]
             if self.mode == "hash":
+                self.output_summary = self.hash_output_summary
                 self._show_current_mode_results()
                 if self.output_summary:
                     self._set_status(f"完成，结果已保存到 {self.output_summary.output_path}")
                 else:
                     self._set_status("完成，结果已在界面中展示")
 
-        if self._has_attention():
-            QMessageBox.warning(self, APP_TITLE, "任务已完成，但有文件需要处理。请查看右侧提醒。")
+        if self._has_attention(payload_mode):
+            if payload_mode == "verify":
+                self._set_status("校验完成，有项目需要查看说明列")
+            else:
+                self._set_status("完成，有文件需要查看说明列")
 
     def _release_thread(self) -> None:
         self.thread = None
         self.worker = None
+        self.running_mode = None
 
     def _append_hash_result(self, result: FileHashResult) -> None:
         self.hash_results.append(result)
@@ -1198,6 +1182,7 @@ class MD5MateWindow(QMainWindow):
         for column, value in enumerate(values):
             item = QTableWidgetItem(value)
             item.setToolTip(value)
+            item.setForeground(QColor(COLORS["text"]))
             if column == len(values) - 2:
                 item.setForeground(self._severity_color(severity))
                 font = QFont()
@@ -1216,33 +1201,40 @@ class MD5MateWindow(QMainWindow):
             self._append_verification_row(result)
 
     def _set_issues(self, issues: list[ScanIssue]) -> None:
-        if self.mode == "verify":
+        target_mode = self.running_mode or self.mode
+        if target_mode == "verify":
             self.verify_issues = list(issues)
-            self.issues = self.verify_issues
         else:
             self.hash_issues = list(issues)
-            self.issues = self.hash_issues
-        self._render_issues()
+
+        if self.mode == target_mode:
+            self.issues = self.verify_issues if target_mode == "verify" else self.hash_issues
+            self._show_current_mode_results()
+
+    def _issue_display_name(self, value: Path | str) -> str:
+        path = Path(value)
+        root_text = self.directory_edit.text().strip()
+        if root_text:
+            try:
+                return path.resolve().relative_to(Path(root_text).expanduser().resolve()).as_posix()
+            except (OSError, ValueError):
+                pass
+        return path.name or str(path)
 
     def _render_issues(self) -> None:
-        self.issue_list.clear()
-        if not self.issues:
-            self.issue_list.addItem("暂无提醒")
-            return
         for issue in self.issues:
-            self._add_issue(str(issue.path), issue.message)
+            self._add_issue(self._issue_display_name(issue.path), issue.message)
 
-    def _add_issue(self, title: str, message: str) -> None:
-        if self.issue_list.count() == 1 and self.issue_list.item(0).text() == "暂无提醒":
-            self.issue_list.clear()
-        item = QListWidgetItem(f"{title}\n{message}")
-        item.setForeground(QColor(COLORS["warning"]))
-        self.issue_list.addItem(item)
+    def _add_issue(self, title: str, message: str, *, mode: str | None = None) -> None:
+        target_mode = mode or self.mode
+        if target_mode == "verify":
+            values = ["-", title, "-", "-", "提醒", message]
+        else:
+            values = ["-", title, "-", "提醒", message]
+        self._append_table_row(values, "warning")
 
     def _clear_current_results(self) -> None:
         self.result_table.setRowCount(0)
-        self.issue_list.clear()
-        self.issue_list.addItem("暂无提醒")
         if self.mode == "verify":
             self.verify_results = []
             self.verify_issues = []
@@ -1263,15 +1255,20 @@ class MD5MateWindow(QMainWindow):
         if self.mode == "verify":
             self.output_summary = None
             self.issues = self.verify_issues
-            self._reload_verification_table()
+            self.result_table.setRowCount(0)
+            self._render_issues()
+            for result in self.verify_results:
+                self._append_verification_row(result)
             summary = summarize_verification_results(self.verify_results, self.issues)
         else:
             self.output_summary = self.hash_output_summary
             self.issues = self.hash_issues
-            self._reload_hash_table()
+            self.result_table.setRowCount(0)
+            self._render_issues()
+            for result in self.hash_results:
+                self._append_hash_row(result)
             summary = summarize_hash_results(self.hash_results, self.issues)
 
-        self._render_issues()
         if summary.total or summary.warnings:
             self._apply_summary(summary.total, summary.succeeded, summary.failed, summary.warnings)
         else:
@@ -1394,6 +1391,10 @@ class MD5MateWindow(QMainWindow):
         self.progress.setFormat(f"{done} / {total}")
 
     def _reset_summary(self) -> None:
+        self._set_summary_titles()
+        self._apply_summary(0, 0, 0, 0)
+
+    def _set_summary_titles(self) -> None:
         if self.mode == "verify":
             self.metric_total.set_title("校验项")
             self.metric_success.set_title("一致")
@@ -1404,9 +1405,9 @@ class MD5MateWindow(QMainWindow):
             self.metric_success.set_title("成功")
             self.metric_failed.set_title("失败")
             self.metric_warnings.set_title("提醒")
-        self._apply_summary(0, 0, 0, 0)
 
     def _apply_summary(self, total: int, succeeded: int, failed: int, warnings: int) -> None:
+        self._set_summary_titles()
         self.metric_total.set_value(total)
         self.metric_success.set_value(succeeded)
         self.metric_failed.set_value(failed)
@@ -1414,10 +1415,12 @@ class MD5MateWindow(QMainWindow):
         if hasattr(self, "metrics_panel"):
             self.metrics_panel.setVisible(any((total, succeeded, failed, warnings)))
 
-    def _has_attention(self) -> bool:
-        if self.issues:
+    def _has_attention(self, mode: str | None = None) -> bool:
+        target_mode = mode or self.mode
+        issues = self.verify_issues if target_mode == "verify" else self.hash_issues
+        if issues:
             return True
-        if self.mode == "verify":
+        if target_mode == "verify":
             return any(not result.ok for result in self.verify_results)
         return any(not result.ok for result in self.hash_results)
 

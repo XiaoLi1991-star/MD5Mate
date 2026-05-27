@@ -69,6 +69,7 @@ def main() -> int:
         ("verify mode reports matched md5 entries", check_verify_match),
         ("verify mode reports mismatched md5 entries", check_verify_mismatch),
         ("verify mode reports missing files", check_verify_missing),
+        ("hash and verify result pages stay isolated", check_hash_verify_pages_isolated),
         ("verify mode reports malformed md5 files", check_verify_malformed_file),
         ("invalid directory shows a warning dialog", check_invalid_directory_warning),
         ("repeated launch and cleanup leaves no app process", check_repeated_launch_cleanup),
@@ -313,7 +314,11 @@ def check_hash_no_output_file() -> None:
         (root / "alpha.txt").write_text("alpha", encoding="utf-8")
         app.run_hash(root)
         app.wait_table_contains("alpha.txt")
-        assert hashlib.md5(b"alpha").hexdigest() in "\n".join(app.table_names())
+        table = "\n".join(app.table_names())
+        assert hashlib.md5(b"alpha").hexdigest() in table
+        assert "alpha.txt" in table
+        assert "5 B" in table
+        assert "\u5b8c\u6210" in table
         assert not list(root.glob("md5_results.*")), "blank output path should not create a default output file"
 
 
@@ -427,6 +432,7 @@ def check_verify_match() -> None:
         app.wait_table_contains("alpha.txt")
         table = "\n".join(app.table_names())
         assert expected in table
+        assert "5 B" in table
         assert "\u4e00\u81f4" in table
         app.invoke("Button", COPY_VERIFY)
         assert app.controls("Table"), "copy action should not close or crash the result table"
@@ -451,6 +457,36 @@ def check_verify_missing() -> None:
         app.run_verify(root, checksum)
         app.wait_table_contains("missing.txt")
         assert "\u7f3a\u5931" in "\n".join(app.table_names())
+
+
+def check_hash_verify_pages_isolated() -> None:
+    with tempfile.TemporaryDirectory(prefix="MD5MateExeQA-") as tmp, launched_app() as app:
+        root = Path(tmp)
+        (root / "source.hashonly").write_text("source", encoding="utf-8")
+        (root / "check.txt").write_text("check", encoding="utf-8")
+        checksum = root / "checksums.md5"
+        checksum.write_text(f"{hashlib.md5(b'check').hexdigest()}  check.txt\nnot-md5", encoding="utf-8")
+
+        app.run_hash(root, filter_text="*.hashonly")
+        app.wait_table_contains("source.hashonly")
+        hash_table = "\n".join(app.table_names())
+        assert "source.hashonly" in hash_table
+        assert "check.txt" not in hash_table
+
+        app.run_verify(root, checksum)
+        app.wait_table_contains("check.txt")
+        verify_table = "\n".join(app.table_names())
+        assert "check.txt" in verify_table
+        assert "checksums.md5" in verify_table
+        assert "\u7b2c 2 \u884c" in verify_table
+        assert "source.hashonly" not in verify_table
+
+        app.invoke("CheckBox", HASH_NAV)
+        app.wait_table_contains("source.hashonly")
+        hash_table = "\n".join(app.table_names())
+        assert "source.hashonly" in hash_table
+        assert "checksums.md5" not in hash_table
+        assert "check.txt" not in hash_table
 
 
 def check_verify_malformed_file() -> None:

@@ -6,7 +6,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QPoint  # noqa: E402
 from PySide6.QtWidgets import QAbstractSpinBox, QApplication  # noqa: E402
 
-from md5_tool.qt_gui import ClearCheckBox, ClearComboBox, MD5MateWindow  # noqa: E402
+from md5_tool.models import ScanIssue  # noqa: E402
+from md5_tool.qt_gui import COLORS, ClearCheckBox, ClearComboBox, MD5MateWindow  # noqa: E402
 
 
 def _app():
@@ -26,6 +27,7 @@ def test_hash_mode_keeps_core_controls_visible_and_advanced_options_fixed():
     assert not window.metrics_panel.isVisible()
     assert window.advanced_panel.isVisible()
     assert not hasattr(window, "advanced_toggle")
+    assert not hasattr(window, "issue_list")
 
     window.close()
 
@@ -179,5 +181,26 @@ def test_completed_expanded_layout_keeps_directory_row_clear_of_drop_panel():
     filter_top = window.filter_combo.mapTo(window, QPoint(0, 0)).y()
     assert directory_top - drop_bottom >= 22
     assert filter_top - directory_bottom >= 10
+
+    window.close()
+
+
+def test_result_area_is_compact_and_renders_issues_in_table_detail():
+    _app()
+    window = MD5MateWindow()
+    window.show()
+    QApplication.processEvents()
+
+    assert window.result_panel.maximumHeight() <= 220
+    assert not hasattr(window, "issue_list")
+
+    window._set_issues([ScanIssue("locked.bin", "无法读取")])
+    QApplication.processEvents()
+
+    assert window.result_table.rowCount() == 1
+    assert window.result_table.item(0, 1).text() == "locked.bin"
+    assert window.result_table.item(0, 1).foreground().color().name() == COLORS["text"]
+    assert window.result_table.item(0, 3).text() == "提醒"
+    assert window.result_table.item(0, 4).text() == "无法读取"
 
     window.close()

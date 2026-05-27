@@ -29,6 +29,9 @@ def test_build_hash_rows_uses_user_facing_status_and_severity():
 
     assert rows[0].status == "完成"
     assert rows[0].severity == "success"
+    assert rows[0].md5 == "444bcb3a3fcf8389296c49467f27e1d6"
+    assert rows[0].file_name == "ok.txt"
+    assert rows[0].size == "2 B"
     assert rows[1].status == "失败"
     assert rows[1].severity == "error"
     assert rows[1].detail == "没有访问权限"
@@ -54,7 +57,7 @@ def test_build_verification_rows_maps_all_verification_states():
     entry = ChecksumEntry("0" * 32, "file.txt", 1)
     rows = build_verification_rows(
         [
-            VerificationResult(entry, Path("file.txt"), status="matched", actual_md5="0" * 32),
+            VerificationResult(entry, Path("file.txt"), size=2, status="matched", actual_md5="0" * 32),
             VerificationResult(entry, Path("file.txt"), status="mismatched", actual_md5="1" * 32, error="期望: 000"),
             VerificationResult(entry, Path("file.txt"), status="missing", error="文件不存在"),
             VerificationResult(entry, Path("file.txt"), status="error", error="读取失败"),
@@ -63,6 +66,10 @@ def test_build_verification_rows_maps_all_verification_states():
 
     assert [row.status for row in rows] == ["一致", "不一致", "缺失", "错误"]
     assert [row.severity for row in rows] == ["success", "warning", "error", "error"]
+    assert rows[0].expected_md5 == "0" * 32
+    assert rows[0].file_name == "file.txt"
+    assert rows[0].actual_md5 == "0" * 32
+    assert rows[0].size == "2 B"
 
 
 def test_summarize_verification_results_prefers_warning_when_anything_needs_attention():

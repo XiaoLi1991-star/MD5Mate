@@ -537,8 +537,10 @@ def check_verify_mixed_valid_and_bad_lines() -> None:
         checksum.write_text(f"{digest}  alpha.txt\nnot-md5\n", encoding="utf-8")
         app.run_verify(root, checksum)
         app.wait_table_contains("alpha.txt")
-        assert "一致" in table_text(app)
-        assert any("not-md5" in text or "第" in text for text in app.texts())
+        table = table_text(app)
+        assert "一致" in table
+        assert "mixed.md5" in table
+        assert "第 2 行" in table
 
 
 def check_verify_duplicate_entries() -> None:
