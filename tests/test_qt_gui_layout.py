@@ -118,3 +118,70 @@ def test_drop_panel_elides_long_directory_path_and_keeps_full_tooltip():
     assert window.directory_drop.height() <= original_height + 4
 
     window.close()
+
+
+def test_long_status_message_does_not_compress_progress_bar():
+    _app()
+    window = MD5MateWindow()
+    window.show()
+    QApplication.processEvents()
+
+    long_output = "D:\\" + "\\".join(["very-long-directory-name"] * 24) + "\\result.md5"
+    message = f"完成，结果已保存到 {long_output}"
+
+    window._set_status(message)
+    QApplication.processEvents()
+
+    assert window.status_label.toolTip() == message
+    assert window.status_label.text() != message
+    assert len(window.status_label.text()) < len(message)
+    assert window.progress.width() >= 160
+    assert 180 <= window.status_label.width() <= 420
+    status_right = window.status_label.mapTo(window, QPoint(window.status_label.width(), 0)).x()
+    assert status_right <= window.width()
+
+    window.close()
+
+
+def test_long_output_path_does_not_overlap_advanced_controls():
+    _app()
+    window = MD5MateWindow()
+    window.show()
+    QApplication.processEvents()
+
+    window.advanced_toggle.click()
+    long_output = "D:\\" + "\\".join(["very-long-directory-name"] * 24) + "\\result.md5"
+    window.output_edit.setText(long_output)
+    QApplication.processEvents()
+
+    output_right = window.output_edit.mapTo(window, QPoint(window.output_edit.width(), 0)).x()
+    threads_left = window.threads_spin.mapTo(window, QPoint(0, 0)).x()
+    recursive_left = window.recursive_check.mapTo(window, QPoint(0, 0)).x()
+    assert output_right + 8 <= threads_left
+    assert threads_left + window.threads_spin.width() + 32 <= recursive_left
+    assert window.output_edit.text() == long_output
+
+    window.close()
+
+
+def test_completed_expanded_layout_keeps_directory_row_clear_of_drop_panel():
+    _app()
+    window = MD5MateWindow()
+    window.resize(1175, 768)
+    window.show()
+    QApplication.processEvents()
+
+    window._apply_summary(1, 1, 0, 0)
+    window._set_directory_from_drop("D:\\" + "\\".join(["MD5MateDeep"] * 8))
+    window.advanced_toggle.click()
+    window.output_edit.setText("D:\\" + "\\".join(["MD5MateDeep"] * 8) + "\\out.md5")
+    QApplication.processEvents()
+
+    drop_bottom = window.directory_drop.mapTo(window, QPoint(0, window.directory_drop.height())).y()
+    directory_top = window.directory_edit.mapTo(window, QPoint(0, 0)).y()
+    directory_bottom = window.directory_edit.mapTo(window, QPoint(0, window.directory_edit.height())).y()
+    filter_top = window.filter_combo.mapTo(window, QPoint(0, 0)).y()
+    assert directory_top - drop_bottom >= 22
+    assert filter_top - directory_bottom >= 10
+
+    window.close()

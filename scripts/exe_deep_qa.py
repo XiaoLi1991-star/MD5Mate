@@ -31,6 +31,7 @@ def main() -> int:
         ("long directory path stays compact in drop panel", check_long_directory_drop_panel_stays_compact),
         ("output stays UI-only when blank", check_blank_output_no_file),
         ("standard md5sum spacing in exported file", check_standard_md5sum_spacing),
+        ("long output path keeps footer status compact", check_long_output_status_stays_compact),
         ("csv extension still writes md5sum lines", check_csv_extension_still_md5sum),
         ("txt extension still writes md5sum lines", check_txt_extension_still_md5sum),
         ("missing output parent folder is created", check_output_parent_created),
@@ -145,6 +146,44 @@ def check_standard_md5sum_spacing() -> None:
         app.wait_table_contains("a.txt")
         expected = hashlib.md5(b"alpha").hexdigest()
         assert output.read_text(encoding="utf-8") == f"{expected}  a.txt\n"
+
+
+def check_long_output_status_stays_compact() -> None:
+    with tempfile.TemporaryDirectory(prefix="MD5MateLongOutput-") as tmp, launched_app() as app:
+        root = Path(tmp) / "input"
+        root.mkdir()
+        (root / "a.txt").write_text("alpha", encoding="utf-8")
+        output_dir = Path(tmp)
+        for index in range(5):
+            output_dir = output_dir / f"very-long-output-directory-{index:02d}"
+        output_dir.mkdir(parents=True)
+        output = output_dir / "result.md5"
+
+        app.run_hash(root, output=output)
+        app.wait_table_contains("a.txt")
+        wait_until(lambda: output.exists(), "long output file was not created")
+
+        status_items = [
+            control
+            for control in app.controls("Text")
+            if "\u2026" in control.element_info.name and "result.md5" in control.element_info.name
+        ]
+        assert status_items, "footer status did not elide the long output path"
+        status_rect = status_items[-1].rectangle()
+        window_rect = app.window().rectangle()
+        assert status_rect.width() <= 340, "footer status consumed too much width"
+        assert status_rect.right <= window_rect.right - 12, "footer status overflowed the window"
+
+        directory_edit = app.first("Edit", index=0)
+        filter_combo = app.first("ComboBox")
+        assert directory_edit.rectangle().bottom + 8 <= filter_combo.rectangle().top, "directory and filter rows touch"
+        path_labels = [
+            control
+            for control in app.controls("Text")
+            if "input" in control.element_info.name and "result.md5" not in control.element_info.name
+        ]
+        assert path_labels, "target directory drop panel path label was not visible"
+        assert path_labels[-1].rectangle().bottom + 18 <= directory_edit.rectangle().top, "drop panel crowds directory row"
 
 
 def check_csv_extension_still_md5sum() -> None:

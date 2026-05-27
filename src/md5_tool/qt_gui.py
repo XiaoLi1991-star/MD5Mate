@@ -91,7 +91,7 @@ class DropPanel(QFrame):
         self.setAcceptDrops(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(96)
+        self.setFixedHeight(88)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 16, 18, 16)
@@ -250,6 +250,32 @@ class ClearComboBox(QComboBox):
         painter.setPen(QPen(arrow_color, 1.7, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
         painter.drawLine(center_x - 4, center_y - 2, center_x, center_y + 2)
         painter.drawLine(center_x, center_y + 2, center_x + 4, center_y - 2)
+
+
+class ElidedLabel(QLabel):
+    """Label that keeps full text in a tooltip and draws compact text."""
+
+    def __init__(self, text: str = "", *, mode: Qt.TextElideMode = Qt.TextElideMode.ElideMiddle):
+        self._full_text = ""
+        self._elide_mode = mode
+        super().__init__("")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.setText(text)
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt API
+        self._full_text = text or ""
+        self.setToolTip(self._full_text)
+        self._refresh_text()
+
+    def resizeEvent(self, event):  # noqa: N802 - Qt API
+        super().resizeEvent(event)
+        self._refresh_text()
+
+    def _refresh_text(self) -> None:
+        available_width = max(24, self.width())
+        text = self.fontMetrics().elidedText(self._full_text, self._elide_mode, available_width)
+        QLabel.setText(self, text)
 
 
 class JobWorker(QObject):
@@ -523,6 +549,7 @@ class MD5MateWindow(QMainWindow):
         drop_row.addWidget(self.directory_drop, 1)
         drop_row.addWidget(self.checksum_drop, 1)
         outer_layout.addLayout(drop_row)
+        outer_layout.addSpacing(22)
 
         form_widget = QWidget()
         layout = QGridLayout(form_widget)
@@ -532,6 +559,7 @@ class MD5MateWindow(QMainWindow):
         layout.setColumnMinimumWidth(0, 86)
         layout.setColumnStretch(0, 0)
         layout.setColumnStretch(1, 1)
+        form_widget.setMinimumHeight(100)
         outer_layout.addWidget(form_widget)
 
         self.directory_edit = QLineEdit()
@@ -700,8 +728,10 @@ class MD5MateWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
         self.progress = QTableProgress()
-        self.status_label = QLabel("就绪")
+        self.status_label = ElidedLabel("就绪")
         self.status_label.setObjectName("statusLabel")
+        self.status_label.setFixedWidth(320)
+        self.status_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.progress, 1)
         layout.addWidget(self.status_label)
         return footer
