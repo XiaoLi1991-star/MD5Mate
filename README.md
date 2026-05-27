@@ -1,6 +1,6 @@
 # MD5Mate
 
-MD5Mate 是一个面向 Windows 桌面用户和脚本批处理场景的本地文件 MD5 工具。它支持批量计算、`.md5` 文件校验、可配置线程数、错误提醒、结果复制和标准 md5sum 格式导出，适合校验下载文件、安装包、归档包或资料目录。
+MD5Mate 是一个面向 Windows 桌面用户的本地文件 MD5 工具。它支持批量计算、`.md5` 文件校验、可配置线程数、错误提醒、结果复制和标准 md5sum 格式导出，适合校验下载文件、安装包、归档包或资料目录。
 
 ![MD5Mate demo](docs/assets/md5mate-demo.gif)
 
@@ -14,33 +14,13 @@ MD5Mate 是一个面向 Windows 桌面用户和脚本批处理场景的本地文
 - 复制和导出结果时使用标准 md5sum 行格式：`md5  文件名`。
 - 支持导入 `.md5` 文件，对所选目录内的文件进行一致性校验。
 - 文件级错误不会中断整个任务，失败、缺失和扫描提醒会集中展示。
-- 提供 CLI，适合脚本、CI 或批处理任务。
+- 专注桌面可视化操作，不需要用户理解复杂参数。
 
 ## 运行 GUI
 
 ```powershell
 python main.py
 ```
-
-安装为本地包后也可以运行：
-
-```powershell
-pip install -e .
-md5mate-gui
-```
-
-## 命令行用法
-
-```powershell
-md5mate "D:\Downloads" --filter ".zip,.exe" --threads 8 --output checksums.md5
-```
-
-常用参数：
-
-- `--filter`: 文件筛选规则，默认 `*`。
-- `--threads`: 计算线程数，范围 1-64。
-- `--output`: 输出文件路径，内容始终为标准 md5sum 行格式。
-- `--strict`: 存在失败文件时返回非零退出码。
 
 ## GUI 校验模式
 

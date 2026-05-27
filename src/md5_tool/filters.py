@@ -10,7 +10,7 @@ ALL_FILE_LABELS = {"*", "*.*", "all", "all files", "所有文件", "全部文件
 
 
 def parse_filter_text(filter_text: str | None) -> list[str]:
-    """Convert UI/CLI filter text into fnmatch patterns.
+    """Convert desktop filter text into fnmatch patterns.
 
     Supported inputs:
     - empty, "*" or "所有文件 (*)"

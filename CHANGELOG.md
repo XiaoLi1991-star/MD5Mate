@@ -2,14 +2,15 @@
 
 ## Unreleased
 
-- Simplified desktop and CLI export behavior to always write standard md5sum lines.
+- Focused MD5Mate on the desktop app experience.
+- Simplified desktop export behavior to always write standard md5sum lines.
 - Removed the desktop format selector from advanced options.
 - Increased advanced option row spacing and styled the thread spinner arrows for clearer interaction.
 - Improved recursive-scan checkbox contrast with clear checked and unchecked states.
 
 ## 1.0.0 - 2026-05-22
 
-- Rebuilt the legacy MD5 calculator into a clean package with GUI and CLI entry points.
+- Rebuilt the legacy MD5 calculator into a clean desktop package.
 - Replaced the tkinter desktop UI with a modern PySide6/Qt workstation interface.
 - Added drag-and-drop path selection, summary cards, a cleaner result table, and a dedicated reminder panel.
 - Simplified the first screen so core actions stay prominent; advanced output/thread options are collapsed by default.

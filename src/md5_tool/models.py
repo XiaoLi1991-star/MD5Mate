@@ -1,4 +1,4 @@
-"""Data models shared by the CLI and GUI."""
+"""Data models shared by MD5Mate modules."""
 
 from __future__ import annotations
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import re
 import subprocess
@@ -28,10 +27,6 @@ def main() -> int:
         ("pytest ui presenters", lambda: run([PYTHON, "-m", "pytest", "tests/test_ui_presenters.py", "-q"])),
         ("pytest qt layout", lambda: run([PYTHON, "-m", "pytest", "tests/test_qt_gui_layout.py", "-q"])),
         ("pytest qt functional", lambda: run([PYTHON, "-m", "pytest", "tests/test_qt_gui_functional.py", "-q"])),
-        ("cli md5 output", check_cli_md5_output),
-        ("cli csv extension still writes md5sum", check_cli_csv_extension_md5sum_output),
-        ("cli no format option", check_cli_no_format_option),
-        ("cli empty selection exit", check_cli_empty_selection),
         ("thread count normalization", check_thread_count_normalization),
         ("filter preset parsing", check_filter_preset_parsing),
         ("md5 parser issue reporting", check_md5_parser_issue_reporting),
@@ -43,7 +38,7 @@ def main() -> int:
         ("demo gif metadata", check_demo_gif_metadata),
         ("readme demo asset link", check_readme_demo_link),
         ("source text encoding sanity", check_source_text_encoding),
-        ("pyproject entry points", check_pyproject_entry_points),
+        ("pyproject metadata", check_pyproject_metadata),
         ("build script dry inspection", check_build_script),
     ]
 
@@ -81,62 +76,6 @@ def run_code(code: str, *, env: dict[str, str] | None = None, timeout: int = 120
 
 def check_compileall() -> None:
     run([PYTHON, "-m", "compileall", "src", "tests", "main.py", "build.py"])
-
-
-def check_cli_md5_output() -> None:
-    with tempfile.TemporaryDirectory(prefix="md5mate-cli-") as tmp:
-        root = Path(tmp)
-        (root / "a.txt").write_text("alpha", encoding="utf-8")
-        (root / "b.bin").write_bytes(b"skip")
-        output = root / "checksums.md5"
-        run(
-            [
-                PYTHON,
-                "-m",
-                "md5_tool.cli",
-                str(root),
-                "--filter",
-                ".txt",
-                "--threads",
-                "2",
-                "--output",
-                str(output),
-            ]
-        )
-        content = output.read_text(encoding="utf-8")
-        expected = hashlib.md5(b"alpha").hexdigest()
-        assert f"{expected}  a.txt" in content
-        assert "b.bin" not in content
-
-
-def check_cli_csv_extension_md5sum_output() -> None:
-    with tempfile.TemporaryDirectory(prefix="md5mate-csv-") as tmp:
-        root = Path(tmp)
-        (root / "a.txt").write_text("alpha", encoding="utf-8")
-        output = root / "report.csv"
-        run([PYTHON, "-m", "md5_tool.cli", str(root), "--output", str(output)])
-        content = output.read_text(encoding="utf-8")
-        assert content == f"{hashlib.md5(b'alpha').hexdigest()}  a.txt\n"
-
-
-def check_cli_no_format_option() -> None:
-    completed = run([PYTHON, "-m", "md5_tool.cli", "--help"])
-    assert "--format" not in completed.stdout
-
-
-def check_cli_empty_selection() -> None:
-    with tempfile.TemporaryDirectory(prefix="md5mate-empty-") as tmp:
-        env = os.environ.copy()
-        env["PYTHONPATH"] = str(SRC)
-        completed = subprocess.run(
-            [PYTHON, "-m", "md5_tool.cli", tmp, "--filter", ".zip", "--output", str(Path(tmp) / "out.md5")],
-            cwd=ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        assert completed.returncode == 2, _command_failure(completed.args, completed)
 
 
 def check_thread_count_normalization() -> None:
@@ -322,10 +261,10 @@ def check_source_text_encoding() -> None:
         assert "锟斤拷" not in text, f"mojibake marker found in {path}"
 
 
-def check_pyproject_entry_points() -> None:
+def check_pyproject_metadata() -> None:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "PySide6" in text
-    assert 'md5mate-gui = "md5_tool.qt_gui:main"' in text
+    assert "Intended Audience :: End Users/Desktop" in text
 
 
 def check_build_script() -> None:
