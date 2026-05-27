@@ -2,7 +2,13 @@
 
 MD5Mate 是一个面向 Windows 桌面用户的本地文件 MD5 工具。它支持批量计算、`.md5` 文件校验、可配置线程数、错误提醒、结果复制和标准 md5sum 格式导出，适合校验下载文件、安装包、归档包或资料目录。
 
-![MD5Mate demo](docs/assets/md5mate-demo.gif)
+## 界面预览
+
+![计算 MD5 结果](docs/assets/md5mate-hash-results.png)
+
+![校验 .md5 结果](docs/assets/md5mate-verify-results.png)
+
+![仅看异常文件](docs/assets/md5mate-verify-attention.png)
 
 ## 功能特性
 

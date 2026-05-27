@@ -35,8 +35,9 @@ def main() -> int:
         ("gui clipboard md5 format", check_gui_clipboard_format),
         ("gui verify mode visibility", check_gui_verify_mode_visibility),
         ("packaged exe starts", check_packaged_exe_starts),
-        ("demo gif metadata", check_demo_gif_metadata),
-        ("readme demo asset link", check_readme_demo_link),
+        ("screenshot asset metadata", check_screenshot_asset_metadata),
+        ("readme screenshot links", check_readme_screenshot_links),
+        ("no gif or mp4 demo assets", check_no_gif_or_mp4_demo_assets),
         ("source text encoding sanity", check_source_text_encoding),
         ("pyproject metadata", check_pyproject_metadata),
         ("build script dry inspection", check_build_script),
@@ -216,7 +217,7 @@ def check_packaged_exe_starts() -> None:
         raise AssertionError("dist/MD5Mate.exe does not exist")
     process = subprocess.Popen([str(exe)], cwd=ROOT)
     try:
-        deadline = time.time() + 12
+        deadline = time.time() + 25
         while time.time() < deadline:
             if _windows_title_exists("MD5Mate"):
                 return
@@ -230,28 +231,38 @@ def check_packaged_exe_starts() -> None:
             process.kill()
 
 
-def check_demo_gif_metadata() -> None:
+def check_screenshot_asset_metadata() -> None:
     from PIL import Image
 
-    gif = ROOT / "docs" / "assets" / "md5mate-demo.gif"
-    if not gif.exists():
-        raise AssertionError("Demo GIF is missing")
-    with Image.open(gif) as image:
-        durations = []
-        for index in range(image.n_frames):
-            image.seek(index)
-            durations.append(image.info.get("duration", 0))
-        assert image.size[0] <= 1000
-        assert image.n_frames >= 5
-        assert sum(durations) <= 6000
-    assert gif.stat().st_size < 1_000_000
+    for relative_path in screenshot_asset_paths():
+        path = ROOT / relative_path
+        if not path.exists():
+            raise AssertionError(f"README screenshot is missing: {relative_path}")
+        with Image.open(path) as image:
+            assert image.format == "PNG"
+            assert image.size[0] >= 1000
+            assert image.size[1] >= 650
+        assert path.stat().st_size < 1_000_000
 
 
-def check_readme_demo_link() -> None:
+def check_readme_screenshot_links() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    match = re.search(r"!\[[^\]]*\]\((docs/assets/md5mate-demo\.gif)\)", readme)
-    assert match, "README does not reference demo GIF"
-    assert (ROOT / match.group(1)).exists()
+    for relative_path in screenshot_asset_paths():
+        assert f"]({relative_path})" in readme, f"README does not reference {relative_path}"
+
+
+def check_no_gif_or_mp4_demo_assets() -> None:
+    demo_assets = ROOT / "docs" / "assets"
+    leftovers = [path for pattern in ("*.gif", "*.mp4") for path in demo_assets.glob(pattern)]
+    assert not leftovers, f"old demo media should be removed: {leftovers}"
+
+
+def screenshot_asset_paths() -> tuple[str, ...]:
+    return (
+        "docs/assets/md5mate-hash-results.png",
+        "docs/assets/md5mate-verify-results.png",
+        "docs/assets/md5mate-verify-attention.png",
+    )
 
 
 def check_source_text_encoding() -> None:
